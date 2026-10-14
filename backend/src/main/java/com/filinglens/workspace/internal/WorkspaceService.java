@@ -37,6 +37,8 @@ class WorkspaceService {
 
 	static final int MAX_FINDINGS_PER_USER = 5000;
 
+	static final int MAX_SESSIONS_PER_USER = 200;
+
 	static final int MAX_TAGS = 10;
 
 	private final WorkspaceRepository workspace;
@@ -80,6 +82,10 @@ class WorkspaceService {
 	}
 
 	SessionView createSession(UUID userId, String title, String description) {
+		if (workspace.sessions(userId).size() >= MAX_SESSIONS_PER_USER) {
+			throw new ConflictException("too-many-sessions",
+					"You can keep at most %d research sessions".formatted(MAX_SESSIONS_PER_USER));
+		}
 		long id = workspace.createSession(userId, title.strip(), blankToNull(description), clock.instant());
 		return session(userId, id);
 	}

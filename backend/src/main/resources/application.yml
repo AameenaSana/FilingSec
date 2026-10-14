@@ -5,6 +5,9 @@ spring:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+      connection-timeout: 10s
   jpa:
     open-in-view: false
     hibernate:
@@ -30,6 +33,11 @@ spring:
 server:
   port: 8080
   shutdown: graceful
+  # JSON and filing HTML compress well; text/event-stream is not compressed, so streams are not buffered.
+  compression:
+    enabled: true
+    mime-types: application/json, application/problem+json, text/html, text/markdown, text/plain
+    min-response-size: 2KB
   forward-headers-strategy: framework
   servlet:
     session:

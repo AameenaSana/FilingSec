@@ -64,6 +64,20 @@ class DocumentApiTest {
 	}
 
 	@Test
+	void viewerIsRevalidatedByEtag() throws Exception {
+		when(documents.viewerHtml(ACCESSION)).thenReturn("<html><body>doc</body></html>".getBytes());
+
+		String etag = mvc.perform(get("/api/v1/filings/{a}/source", ACCESSION).with(user()))
+			.andExpect(status().isOk())
+			.andReturn()
+			.getResponse()
+			.getHeader("ETag");
+		mvc.perform(get("/api/v1/filings/{a}/source", ACCESSION).with(user()).header("If-None-Match", etag))
+			.andExpect(status().isNotModified())
+			.andExpect(content().string(""));
+	}
+
+	@Test
 	void otherEndpointsCannotBeFramed() throws Exception {
 		when(documents.structure(ACCESSION))
 			.thenReturn(new DocumentStructure(ParseStatus.PARSING, null, 1, null, null, List.of()));

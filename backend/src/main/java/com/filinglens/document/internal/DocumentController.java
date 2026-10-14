@@ -1,6 +1,9 @@
 package com.filinglens.document.internal;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.List;
 
 import jakarta.validation.constraints.Max;
@@ -20,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.WebRequest;
 
 import com.filinglens.document.internal.DocumentViews.BlockView;
 import com.filinglens.document.internal.DocumentViews.DocumentStructure;
@@ -72,11 +76,27 @@ class DocumentController {
 	 * frame. Security headers for this path are set in the security configuration.
 	 */
 	@GetMapping(value = "/source", produces = MediaType.TEXT_HTML_VALUE)
-	ResponseEntity<byte[]> source(@PathVariable @Pattern(regexp = ACCESSION) String accession) {
+	ResponseEntity<byte[]> source(@PathVariable @Pattern(regexp = ACCESSION) String accession, WebRequest request) {
+		byte[] html = documents.viewerHtml(accession);
+		// Filing documents run to megabytes; revalidation by hash avoids sending them again.
+		String etag = "\"" + HexFormat.of().formatHex(sha256(html), 0, 16) + "\"";
+		if (request.checkNotModified(etag)) {
+			return null;
+		}
 		return ResponseEntity.ok()
 			.contentType(new MediaType(MediaType.TEXT_HTML, StandardCharsets.UTF_8))
 			.cacheControl(CacheControl.noCache().cachePrivate())
-			.body(documents.viewerHtml(accession));
+			.eTag(etag)
+			.body(html);
+	}
+
+	private static byte[] sha256(byte[] content) {
+		try {
+			return MessageDigest.getInstance("SHA-256").digest(content);
+		}
+		catch (NoSuchAlgorithmException ex) {
+			throw new IllegalStateException(ex);
+		}
 	}
 
 }

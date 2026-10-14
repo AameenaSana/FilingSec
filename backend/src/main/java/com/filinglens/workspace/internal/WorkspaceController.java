@@ -1,6 +1,7 @@
 package com.filinglens.workspace.internal;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 
 import jakarta.validation.Valid;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.filinglens.identity.UserPrincipal;
+import com.filinglens.platform.ratelimit.RateLimiter;
 import com.filinglens.workspace.internal.WorkspaceService.SourceReference;
 import com.filinglens.workspace.internal.WorkspaceViews.FindingView;
 import com.filinglens.workspace.internal.WorkspaceViews.SessionSummary;
@@ -35,10 +37,15 @@ import com.filinglens.workspace.internal.WorkspaceViews.SessionView;
 @RestController
 class WorkspaceController {
 
+	static final RateLimiter.Limit WRITES = new RateLimiter.Limit("workspace-writes", 60, Duration.ofMinutes(1));
+
 	private final WorkspaceService workspace;
 
-	WorkspaceController(WorkspaceService workspace) {
+	private final RateLimiter rateLimiter;
+
+	WorkspaceController(WorkspaceService workspace, RateLimiter rateLimiter) {
 		this.workspace = workspace;
+		this.rateLimiter = rateLimiter;
 	}
 
 	record SessionRequest(@NotBlank @Size(max = 200) String title, @Size(max = 5000) String description) {
@@ -74,6 +81,7 @@ class WorkspaceController {
 	@PostMapping("/api/v1/research-sessions")
 	@ResponseStatus(HttpStatus.CREATED)
 	SessionView createSession(@AuthenticationPrincipal UserPrincipal user, @Valid @RequestBody SessionRequest body) {
+		rateLimiter.acquireOrThrow(WRITES, user.getName());
 		return workspace.createSession(user.id(), body.title(), body.description());
 	}
 
@@ -109,6 +117,7 @@ class WorkspaceController {
 	@PostMapping("/api/v1/findings")
 	@ResponseStatus(HttpStatus.CREATED)
 	FindingView save(@AuthenticationPrincipal UserPrincipal user, @Valid @RequestBody SaveFindingRequest body) {
+		rateLimiter.acquireOrThrow(WRITES, user.getName());
 		return workspace.saveFinding(user.id(), body.sessionId(), body.source().toReference(), body.note(), body.tags());
 	}
 

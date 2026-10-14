@@ -165,6 +165,13 @@ Every query on user-owned rows filters by `user_id` in the repository.
 - **Secrets:** only in environment variables; `.env` is gitignored; gitleaks runs in CI; logs never contain secrets.
 - **Abuse and supply chain:** per-user LLM quotas; Dependabot.
 
+### Hardening (Phase 11)
+
+- **End-to-end tests:** Playwright (`frontend/e2e`) runs the real stack against a stub of SEC EDGAR (`e2e/stub-sec.mjs`, one company with two annual reports) and Mailpit: sign-up with email verification, company search and watch, document processing and the sandboxed viewer, saving a passage, period comparison, workspace and dashboard; plus access-control, CSRF and header checks. CI job `e2e`.
+- **RAG evaluation:** a fictional annual report and questions with one known answering passage each (`backend/src/test/resources/rag-eval`). Retrieval quality (recall@k, MRR) is measured in CI; a live answer evaluation (verified citations, answering passage cited, refusals) runs on demand. See DEPLOYMENT.md §10.
+- **Performance:** indexes for finding/session/conversation cascades and the dashboard's comparison list (V11); HTTP compression for JSON and HTML (never for event streams); an ETag on the filing viewer so unchanged multi-megabyte documents are revalidated with 304; a configurable connection pool.
+- **Security review:** see SECURITY.md. Added rate limits for conversation creation, cross-company research and workspace writes; a per-user session cap; a 256 KB API body limit; and a Content-Security-Policy and HSTS on frontend pages.
+
 ### Dashboard specifics (Phase 10)
 
 - **One request:** `GET /api/v1/dashboard` returns the whole overview, read in a single read-only transaction so counts and lists agree.
@@ -353,4 +360,4 @@ EDGAR access is a separate `edgar` module. Both `company` and `filing` need it, 
 | 8 | Workspace (sessions, findings) | Done |
 | 9 | Monitoring and notifications | Done |
 | 10 | Dashboard | Done |
-| 11 | Hardening: E2E, RAG evaluation, performance, security review, deployment docs | |
+| 11 | Hardening: E2E, RAG evaluation, performance, security review, deployment docs | Done |
