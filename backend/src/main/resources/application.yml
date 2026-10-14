@@ -61,6 +61,11 @@ filinglens:
   mail:
     from: ${MAIL_FROM:FilingLens <no-reply@localhost>}
     log-content: false
+  company:
+    profile-max-age: PT24H
+    directory-sync:
+      enabled: true
+      cron: "0 0 6 * * *"
   identity:
     max-failed-logins: 5
     lockout-duration: PT15M
@@ -71,6 +76,8 @@ filinglens:
     www-base-url: https://www.sec.gov
     data-base-url: https://data.sec.gov
     max-requests-per-second: 8
+    request-timeout: PT30S
+    throttle-pause: PT10M
   storage:
     root-path: ${STORAGE_ROOT:./data/blobs}
   jobs:
