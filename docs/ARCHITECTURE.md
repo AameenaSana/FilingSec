@@ -46,7 +46,7 @@ Status: approved 2026-10-14. This document is the reference for the implementati
 | `research` | embeddings, hybrid retrieval, Q&A, cross-company, citations, LLM usage | document, filing |
 | `workspace` | research sessions, findings, Markdown export | research (`CitationLookup`), comparison (`ChangeLookup`), document (`DocumentContent.block`), filing |
 | `monitoring` | polling watched companies, notifications, SSE, email, auto-compare | company (`Watchlists`), filing (`FilingsDiscovered`, `refreshRecent`), comparison (`ComparisonRequests`, `ComparisonCompleted`), identity (`UserDirectory`) |
-| `dashboard` | read-only aggregates | API packages of the others |
+| `dashboard` | read-only overview (counts, recent filings, changes, notifications, research) | none in code; reads other modules' tables, scoped to the user |
 
 Events: `FilingDiscovered` → `FilingFetched` → `FilingParsed` → `FilingIndexed`, plus `ComparisonCompleted` and `NewFilingForWatchedCompany`.
 
@@ -164,6 +164,13 @@ Every query on user-owned rows filters by `user_id` in the repository.
 - **Prompt injection:** filing text is treated as untrusted data; the model has no tools; citations are validated after generation.
 - **Secrets:** only in environment variables; `.env` is gitignored; gitleaks runs in CI; logs never contain secrets.
 - **Abuse and supply chain:** per-user LLM quotas; Dependabot.
+
+### Dashboard specifics (Phase 10)
+
+- **One request:** `GET /api/v1/dashboard` returns the whole overview, read in a single read-only transaction so counts and lists agree.
+- **Contents:** summary counts (watched companies, filings in the last 30 days, unread notifications, saved findings, last successful SEC check); watched companies with their latest filing of a followed form and unread count; the 15 most recent filings of watched companies in the forms each is followed for (last 90 days); the 6 most recent completed comparisons of watched companies with added/removed/modified/moved counts; the 5 latest notifications; the 5 latest conversations and research sessions.
+- **Read model:** the `dashboard` module owns no tables and has no public API. Its SQL reads other modules' tables directly, always filtered by the user's watchlist or `user_id`, and never writes.
+- **Freshness:** the page refetches every 2 minutes and immediately when a live notification arrives. New users without a watchlist see a getting-started guide.
 
 ### Monitoring specifics (Phase 9)
 
@@ -345,5 +352,5 @@ EDGAR access is a separate `edgar` module. Both `company` and `filing` need it, 
 | 7 | AI change interpretation and cross-company research | Done |
 | 8 | Workspace (sessions, findings) | Done |
 | 9 | Monitoring and notifications | Done |
-| 10 | Dashboard | |
+| 10 | Dashboard | Done |
 | 11 | Hardening: E2E, RAG evaluation, performance, security review, deployment docs | |

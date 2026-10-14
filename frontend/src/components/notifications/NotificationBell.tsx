@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { dashboardKeys } from "@/lib/api/dashboard";
 import {
   NOTIFICATION_STREAM_URL,
   notificationKeys,
@@ -45,6 +46,7 @@ export function NotificationBell() {
       const payload = JSON.parse((event as MessageEvent).data);
       setLive({ unread: payload.unreadCount, latest: payload.notification });
       queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
     });
     return () => source.close();
   }, [queryClient]);
