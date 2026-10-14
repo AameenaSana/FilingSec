@@ -29,7 +29,8 @@ class CompanyServiceTest {
 	static final Instant NOW = Instant.parse("2026-06-01T12:00:00Z");
 
 	static final CompanySubmissions APPLE = new CompanySubmissions("0000320193", "Apple Inc.", "operating", "3571",
-			"Electronic Computers", "Large accelerated filer", "0927", "CA", List.of("AAPL"), List.of("Nasdaq"));
+			"Electronic Computers", "Large accelerated filer", "0927", "CA", List.of("AAPL"), List.of("Nasdaq"), List.of(),
+			List.of());
 
 	final CompanyRepository repository = mock(CompanyRepository.class);
 

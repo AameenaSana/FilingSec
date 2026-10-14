@@ -68,7 +68,7 @@ class CompanyIntegrationTest {
 	void profileFromSubmissionsReplacesDirectoryNameAndSurvivesNextSync() {
 		companies.applyDirectory(directory(null), T1, true);
 		companies.upsertProfile(new CompanySubmissions("0000789019", "Microsoft Corporation", "operating", "7372",
-				"Services-Prepackaged Software", null, "0630", "WA", List.of("MSFT"), List.of("Nasdaq")), T1);
+				"Services-Prepackaged Software", null, "0630", "WA", List.of("MSFT"), List.of("Nasdaq"), List.of(), List.of()), T1);
 		companies.applyDirectory(directory(null), T1.plusSeconds(60), true);
 
 		var detail = companies.findDetail("0000789019", UUID.randomUUID()).orElseThrow();

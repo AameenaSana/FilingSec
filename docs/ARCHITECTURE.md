@@ -163,6 +163,22 @@ Every query on user-owned rows filters by `user_id` in the repository.
 - **Secrets:** only in environment variables; `.env` is gitignored; gitleaks runs in CI; logs never contain secrets.
 - **Abuse and supply chain:** per-user LLM quotas; Dependabot.
 
+### Filing specifics (Phase 3)
+
+- **Discovery:**
+  - A company's 10-K, 10-Q and 8-K filings (with `/A` amendments) are read from the submissions API when the stored list is older than 1 hour.
+  - Older filings live on submissions history pages, imported once in a background job (`filing.history-import`).
+  - Filing metadata is immutable, so inserts are idempotent (`ON CONFLICT DO NOTHING`).
+  - If SEC is down, stored filings are served with `stale: true`.
+- **Fiscal periods:** the period of report (`report_date`) is stored. Fiscal year and period labels are not derived, because SEC metadata alone does not give them reliably.
+- **Fetching:**
+  - Opening a filing queues a `filing.fetch` job.
+  - The job reads the filing index page for the document list, falling back to the submissions API's primary document.
+  - It stores the primary document's original bytes under `edgar/{cik}/{accession}/{filename}` with their SHA-256, then publishes `FilingFetched`.
+  - Status: `DISCOVERED → FETCHING → FETCHED | FAILED`. Failed fetches can be retried.
+  - Job handlers can implement `onPermanentFailure` to record a visible failure after the last retry.
+- **Source references:** every filing and document keeps its canonical sec.gov URL. Archive file names from SEC are validated before they are used in URLs or storage keys.
+
 ### EDGAR access specifics (Phase 2)
 
 EDGAR access is a separate `edgar` module. Both `company` and `filing` need it, and putting it in `filing` would have created a dependency cycle.
@@ -212,7 +228,7 @@ EDGAR access is a separate `edgar` module. Both `company` and `filing` need it, 
 | 0 | Foundations: skeletons, platform module, migrations baseline, Compose, CI | Done |
 | 1 | Identity and accounts | Done |
 | 2 | Companies, EDGAR client, watchlist | Done |
-| 3 | Filing discovery, metadata, raw fetch | |
+| 3 | Filing discovery, metadata, raw fetch | Done |
 | 4 | Document processing and source viewer | |
 | 5 | Comparison engine and diff UI | |
 | 6 | RAG Q&A with verified citations | |

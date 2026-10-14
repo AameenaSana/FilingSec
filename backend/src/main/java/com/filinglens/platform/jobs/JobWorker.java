@@ -86,11 +86,25 @@ class JobWorker {
 		catch (RuntimeException ex) {
 			Throwable cause = ex instanceof JobExecutionException ? ex.getCause() : ex;
 			log.warn("Job failed (attempt {}/{})", job.attempt(), job.maxAttempts(), cause);
-			queue.markFailed(job, cause.getClass().getSimpleName() + ": " + cause.getMessage(), false);
+			boolean exhausted = queue.markFailed(job, cause.getClass().getSimpleName() + ": " + cause.getMessage(),
+					false);
+			if (exhausted) {
+				notifyPermanentFailure(job, cause);
+			}
 		}
 		finally {
 			MDC.remove("jobId");
 			MDC.remove("jobType");
+		}
+	}
+
+	private void notifyPermanentFailure(Job job, Throwable cause) {
+		JobHandler handler = handlers.get(job.type());
+		try {
+			transactionTemplate.executeWithoutResult(status -> handler.onPermanentFailure(job, cause));
+		}
+		catch (RuntimeException ex) {
+			log.error("Permanent-failure hook failed for job {}", job.id(), ex);
 		}
 	}
 

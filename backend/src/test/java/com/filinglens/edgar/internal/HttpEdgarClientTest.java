@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +19,8 @@ import org.junit.jupiter.api.Test;
 import com.filinglens.edgar.CompanySubmissions;
 import com.filinglens.edgar.CompanyTickerEntry;
 import com.filinglens.edgar.EdgarUnavailableException;
+import com.filinglens.edgar.FilingIndexDocument;
+import com.filinglens.edgar.FilingRecord;
 import com.filinglens.edgar.internal.StubSecServer.Response;
 import com.filinglens.platform.config.FilingLensProperties;
 
@@ -83,6 +87,69 @@ class HttpEdgarClientTest {
 		assertThat(profile.stateOfIncorporation()).isEqualTo("CA");
 		assertThat(profile.tickers()).containsExactly("AAPL");
 		assertThat(profile.exchanges()).containsExactly("Nasdaq");
+	}
+
+	@Test
+	void parsesRecentFilingsSkippingInvalidRowsAndUnsafeHistoryFileNames() throws IOException {
+		sec.on("/submissions/CIK0000320193.json", Response.ok(fixture("CIK0000320193.json")));
+
+		CompanySubmissions submissions = client.fetchSubmissions("320193").orElseThrow();
+
+		assertThat(submissions.recentFilings()).hasSize(5).first().satisfies(f -> {
+			assertThat(f.accessionNumber()).isEqualTo("0000320193-25-000079");
+			assertThat(f.form()).isEqualTo("10-K");
+			assertThat(f.filingDate()).isEqualTo(LocalDate.of(2025, 10, 31));
+			assertThat(f.reportDate()).isEqualTo(LocalDate.of(2025, 9, 27));
+			assertThat(f.acceptanceDateTime()).isEqualTo(Instant.parse("2025-10-31T06:01:26Z"));
+			assertThat(f.primaryDocument()).isEqualTo("aapl-20250927.htm");
+			assertThat(f.items()).isNull();
+			assertThat(f.inlineXbrl()).isTrue();
+			assertThat(f.size()).isEqualTo(9374416L);
+		});
+		assertThat(submissions.recentFilings()).filteredOn(f -> f.form().equals("8-K"))
+			.singleElement()
+			.extracting(FilingRecord::items)
+			.isEqualTo("2.02,9.01");
+		assertThat(submissions.historyFiles()).containsExactly("CIK0000320193-submissions-001.json");
+	}
+
+	@Test
+	void parsesHistoryPage() throws IOException {
+		sec.on("/submissions/CIK0000320193-submissions-001.json",
+				Response.ok(fixture("CIK0000320193-submissions-001.json")));
+
+		List<FilingRecord> filings = client.fetchSubmissionsHistory("CIK0000320193-submissions-001.json");
+
+		assertThat(filings).extracting(FilingRecord::accessionNumber)
+			.containsExactly("0001193125-14-383437", "0001193125-14-277160");
+		assertThatThrownBy(() -> client.fetchSubmissionsHistory("../secret.json"))
+			.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void parsesFilingIndexDocumentsSkippingUnsafeAndUnnumberedRows() throws IOException {
+		sec.on("/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.htm",
+				Response.ok(fixture("0000320193-25-000079-index.htm")));
+
+		List<FilingIndexDocument> documents = client.fetchFilingIndex("320193", "0000320193-25-000079").orElseThrow();
+
+		assertThat(documents).containsExactly(
+				new FilingIndexDocument(1, "10-K", "aapl-20250927.htm", "10-K", 1485736L),
+				new FilingIndexDocument(2, "EX-21.1", "a10-kexhibit21109272025.htm", "EX-21.1", 8243L),
+				new FilingIndexDocument(7, "XBRL TAXONOMY EXTENSION SCHEMA DOCUMENT", "aapl-20250927.xsd", "EX-101.SCH",
+						null));
+	}
+
+	@Test
+	void fetchesArchiveDocumentBytes() {
+		byte[] html = "<html><body>Annual report</body></html>".getBytes();
+		sec.on("/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm", Response.ok(html));
+
+		assertThat(client.fetchArchiveDocument("0000320193", "000032019325000079", "aapl-20250927.htm"))
+			.hasValue(html);
+		assertThat(client.fetchArchiveDocument("0000320193", "0000320193-25-000079", "missing.htm")).isEmpty();
+		assertThatThrownBy(() -> client.fetchArchiveDocument("320193", "0000320193-25-000079", "../x.htm"))
+			.isInstanceOf(IllegalArgumentException.class);
 	}
 
 	@Test

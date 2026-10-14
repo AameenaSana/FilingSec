@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { FilingsList } from "@/components/filings/FilingsList";
 import { Alert } from "@/components/ui/Alert";
 import { companiesApi, formatFiscalYearEnd, queryKeys } from "@/lib/api/companies";
 import { ApiError, errorMessage } from "@/lib/api/client";
@@ -62,9 +63,7 @@ export function CompanyDetailView({ cik }: { cik: string }) {
             </div>
           ))}
       </dl>
-      <section className="rounded-lg border border-dashed border-zinc-300 p-6 text-sm text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
-        Filings (10-K, 10-Q, 8-K) for this company will appear here.
-      </section>
+      <FilingsList cik={company.cik} />
     </div>
   );
 }
