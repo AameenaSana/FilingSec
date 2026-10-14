@@ -1,4 +1,4 @@
-package com.filinglens.platform.security;
+package com.filinglens.platform.web;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.notNullValue;
@@ -22,9 +22,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.filinglens.platform.web.RequestCorrelationFilter;
+import com.filinglens.platform.security.ProblemDetailSecurityHandler;
+import com.filinglens.platform.security.SecurityConfiguration;
 
-@WebMvcTest
+@WebMvcTest(controllers = SystemController.class)
 @ActiveProfiles("test")
 @Import({ SecurityConfiguration.class, ProblemDetailSecurityHandler.class, HttpSecurityTest.FixedClock.class })
 class HttpSecurityTest {

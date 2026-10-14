@@ -162,6 +162,26 @@ Every query on user-owned rows filters by `user_id` in the repository.
 - **Secrets:** only in environment variables; `.env` is gitignored; gitleaks runs in CI; logs never contain secrets.
 - **Abuse and supply chain:** per-user LLM quotas; Dependabot.
 
+### Identity specifics (Phase 1)
+
+- **No account enumeration:**
+  - Register, resend-verification and forgot-password always return the same 202 response.
+  - An already-registered address receives a notice email instead of a new account.
+  - Both paths hash the password so timing matches.
+  - Login returns one generic error for unknown email, wrong password and locked account. Unknown and locked accounts still compare against a dummy hash.
+- **Lockout and rate limits:**
+  - Accounts lock for 15 minutes after 5 consecutive failures (configurable).
+  - Per-IP token-bucket limits apply to login, email-sending and token endpoints.
+  - Per-user limits apply to current-password checks.
+- **Email links:**
+  - Verification and reset tokens are 256-bit, single-use and stored only as SHA-256 hashes.
+  - Links carry the token in the URL fragment (`#token=`), so it never reaches server logs or Referer headers. The page removes it from history.
+  - Emails are sent asynchronously after commit. They deliberately do not go through Modulith persistent events, which would store raw tokens.
+- **Sessions:**
+  - Login rotates the session id and the CSRF token.
+  - Password change revokes all other sessions; password reset and account deletion revoke all sessions. Revocation uses Spring Session's principal-name index.
+  - Unverified accounts cannot sign in.
+
 ## 9. Testing
 
 - **Unit:** JUnit 5, Mockito, AssertJ.
@@ -178,7 +198,7 @@ Every query on user-owned rows filters by `user_id` in the repository.
 | # | Phase | Status |
 |---|---|---|
 | 0 | Foundations: skeletons, platform module, migrations baseline, Compose, CI | Done |
-| 1 | Identity and accounts | |
+| 1 | Identity and accounts | Done |
 | 2 | Companies, EDGAR client, watchlist | |
 | 3 | Filing discovery, metadata, raw fetch | |
 | 4 | Document processing and source viewer | |
