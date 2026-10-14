@@ -15,6 +15,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
@@ -50,7 +51,8 @@ class DocumentParseJobTest {
 			Clock.fixed(NOW, ZoneOffset.UTC));
 
 	static FilingRef filing(String blobKey) {
-		return new FilingRef(11, "0000320193-25-000079", "0000320193", "Apple Inc.", "8-K", "doc.htm", blobKey);
+		return new FilingRef(11, 7, "0000320193-25-000079", "0000320193", "Apple Inc.", "8-K",
+				LocalDate.of(2025, 10, 31), null, "doc.htm", blobKey, "FETCHED");
 	}
 
 	@Test

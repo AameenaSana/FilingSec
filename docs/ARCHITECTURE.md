@@ -163,6 +163,24 @@ Every query on user-owned rows filters by `user_id` in the repository.
 - **Secrets:** only in environment variables; `.env` is gitignored; gitleaks runs in CI; logs never contain secrets.
 - **Abuse and supply chain:** per-user LLM quotas; Dependabot.
 
+### Comparison specifics (Phase 5)
+
+- **Lifecycle:** `WAITING → COMPUTING → READY | FAILED`.
+  - Creating a comparison makes sure both filings are downloaded and parsed, through `DocumentContent.prepare` and `FilingCatalog.requestDocuments`.
+  - A `DocumentParsed` listener advances waiting comparisons.
+  - If a document is unreadable, the comparison becomes FAILED; requesting it again retries.
+  - The earlier filing (by period of report) is always the base.
+  - Results are shared per (base, target, algorithm version).
+- **Algorithm (version 1, deterministic):**
+  - Sections are aligned by key. Blocks are diffed in order by content hash (Myers, via java-diff-utils).
+  - Leftover blocks are paired greedily by word-multiset Dice similarity (≥ 0.5, or ≥ 0.7 for blocks under 6 words). Pairs become MODIFIED with a word-level diff; the rest are ADDED or REMOVED.
+  - Exact-text ADDED/REMOVED pairs (≥ 40 characters) anywhere in the document become MOVED.
+  - Changes whose texts differ only in numbers are flagged `numeric_only`.
+  - Changes are ordered by position in the later filing.
+- **Storage:** each change stores both block texts (snapshots), refs and ordinals, so it remains verifiable and links to `/filings/{acc}?block={ordinal}` in either filing.
+- **Facts only:** comparison results contain no AI output. AI interpretations (Phase 7) will be stored separately and labelled.
+- **Suggested comparison:** for a 10-K, the previous annual report (originals preferred over amendments); for a 10-Q, the same quarter a year earlier, else the previous quarter; for an 8-K, the previous 8-K.
+
 ### Document processing specifics (Phase 4)
 
 - **Trigger:**
@@ -258,7 +276,7 @@ EDGAR access is a separate `edgar` module. Both `company` and `filing` need it, 
 | 2 | Companies, EDGAR client, watchlist | Done |
 | 3 | Filing discovery, metadata, raw fetch | Done |
 | 4 | Document processing and source viewer | Done |
-| 5 | Comparison engine and diff UI | |
+| 5 | Comparison engine and diff UI | Done |
 | 6 | RAG Q&A with verified citations | |
 | 7 | AI change interpretation and cross-company research | |
 | 8 | Workspace (sessions, findings) | |
