@@ -15,6 +15,9 @@ vi.mock("@/lib/api/filings", async (importOriginal) => ({
   },
 }));
 
+// The document reader has its own tests.
+vi.mock("@/components/documents/DocumentReader", () => ({ DocumentReader: () => null }));
+
 const ACCESSION = "0000320193-25-000079";
 
 function detail(extra: Partial<FilingDetail> = {}): FilingDetail {

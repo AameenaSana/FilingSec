@@ -163,6 +163,34 @@ Every query on user-owned rows filters by `user_id` in the repository.
 - **Secrets:** only in environment variables; `.env` is gitignored; gitleaks runs in CI; logs never contain secrets.
 - **Abuse and supply chain:** per-user LLM quotas; Dependabot.
 
+### Document processing specifics (Phase 4)
+
+- **Trigger:**
+  - `FilingFetched` → a Modulith listener runs after commit and is persisted, so it is retried on restart.
+  - The listener queues a `document.parse` job.
+  - Parse state lives in `document_parse` with a `parser_version`. Viewing a document parsed by an older version re-parses it.
+- **HTML / inline XBRL:**
+  - Removes scripts, `display:none` content and `ix:header`, and unwraps `ix:*` tags.
+  - Leaf block elements become blocks. Inline runs mixed with blocks are wrapped in a `span`.
+  - A table with one non-empty row is a paragraph (typical "Item 7. | MD&A" headings); a table with one cell per row is layout and is descended into; any other table is a TABLE block ("cell | cell", one row per line).
+  - Page numbers, running headers and "Table of Contents" back-links are dropped.
+- **Plain text (.txt):** paragraphs split on blank lines, with SGML wrapper lines removed. PDFs are marked UNSUPPORTED.
+- **Charset:** a declared charset is honored; otherwise strict UTF-8, falling back to Windows-1252.
+- **Sections:**
+  - Each form has an item catalog with stable keys: `10K.ITEM_1A`, `10Q.PART_II.ITEM_1A` and `8K.ITEM_2.02`.
+  - Of the heading candidates for each item, the one followed by the most text wins, which skips table-of-contents entries.
+  - Picks that break the standard item order are dropped (longest increasing subsequence).
+  - Leading blocks form `COVER`; if no items are found, the whole document is one `DOCUMENT` section.
+  - Each section carries a confidence: HIGH, MEDIUM or LOW.
+- **Stable references:**
+  - `block_ref = {section_key}/p{n}` (n is the position within the section), plus a document-wide `ordinal`, SHA-256 `content_hash`, and `char_start`/`char_end` offsets into the normalized text (blocks joined by a blank line).
+  - The annotated viewer copy carries `data-fl-block="{ordinal}"`.
+- **Viewer security:**
+  - The sanitized copy follows an allow-list; relative links and images are made absolute to sec.gov, and CSS that loads URLs is removed.
+  - It is served from `/api/v1/filings/{acc}/source` with `CSP: default-src 'none'; style-src 'unsafe-inline'; img-src https://www.sec.gov data:; frame-ancestors 'self'; sandbox allow-same-origin …` (no scripts) and `X-Frame-Options: SAMEORIGIN`.
+  - It is shown in an `<iframe sandbox>` without `allow-scripts`. All other API responses keep `frame-ancestors 'none'` and `DENY`.
+  - Next.js adds its page security headers only to non-`/api` paths.
+
 ### Filing specifics (Phase 3)
 
 - **Discovery:**
@@ -229,7 +257,7 @@ EDGAR access is a separate `edgar` module. Both `company` and `filing` need it, 
 | 1 | Identity and accounts | Done |
 | 2 | Companies, EDGAR client, watchlist | Done |
 | 3 | Filing discovery, metadata, raw fetch | Done |
-| 4 | Document processing and source viewer | |
+| 4 | Document processing and source viewer | Done |
 | 5 | Comparison engine and diff UI | |
 | 6 | RAG Q&A with verified citations | |
 | 7 | AI change interpretation and cross-company research | |
