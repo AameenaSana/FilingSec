@@ -11,4 +11,11 @@ public interface JobHandler {
 
 	void handle(Job job) throws Exception;
 
+	/**
+	 * Called once, in its own transaction, after the job's final attempt failed and
+	 * the handler's work was rolled back. Use it to record a visible failure state.
+	 */
+	default void onPermanentFailure(Job job, Throwable cause) {
+	}
+
 }

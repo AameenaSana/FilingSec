@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.104.1",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"

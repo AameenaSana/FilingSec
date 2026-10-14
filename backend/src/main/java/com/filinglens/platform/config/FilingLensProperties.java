@@ -30,12 +30,18 @@ public record FilingLensProperties(@Valid @NotNull App app, @Valid @NotNull Sec 
 	/**
 	 * SEC EDGAR access settings. SEC requires a declared User-Agent containing a
 	 * contact email and limits clients to 10 requests per second.
+	 *
+	 * @param maxRequestsPerSecond cap per application instance; when running several
+	 * instances, divide SEC's limit between them
+	 * @param throttlePause how long all SEC traffic stops after SEC refuses a request
+	 * as over its rate limit
 	 */
 	public record Sec(
 			@NotBlank @Pattern(regexp = ".*\\S+@\\S+\\.\\S+.*",
 					message = "must contain a contact email address as required by SEC") String userAgent,
 			@NotNull URI wwwBaseUrl, @NotNull URI dataBaseUrl,
-			@Min(1) @Max(10) int maxRequestsPerSecond) {
+			@Min(1) @Max(10) int maxRequestsPerSecond, @NotNull Duration requestTimeout,
+			@NotNull Duration throttlePause) {
 	}
 
 	public record Storage(@NotNull Path rootPath) {

@@ -94,7 +94,8 @@ public class JobQueue {
 	 * Records a failure. The job is retried with exponential backoff until it has
 	 * used all its attempts (or the failure is permanent), then it is marked FAILED.
 	 */
-	void markFailed(Job job, String error, boolean permanent) {
+	/** @return whether the job will not be retried */
+	boolean markFailed(Job job, String error, boolean permanent) {
 		boolean exhausted = permanent || job.attempt() >= job.maxAttempts();
 		jdbc.sql("""
 				UPDATE job
@@ -109,6 +110,7 @@ public class JobQueue {
 			.param("exhausted", exhausted)
 			.param("id", job.id())
 			.update();
+		return exhausted;
 	}
 
 	/** Returns jobs whose worker died mid-execution to the queue. */
