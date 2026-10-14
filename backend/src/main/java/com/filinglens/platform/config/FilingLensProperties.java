@@ -20,8 +20,12 @@ import org.springframework.validation.annotation.Validated;
  */
 @Validated
 @ConfigurationProperties(prefix = "filinglens")
-public record FilingLensProperties(@Valid @NotNull Sec sec, @Valid @NotNull Storage storage,
-		@Valid @NotNull Jobs jobs) {
+public record FilingLensProperties(@Valid @NotNull App app, @Valid @NotNull Sec sec, @Valid @NotNull Storage storage,
+		@Valid @NotNull Jobs jobs, @Valid @NotNull Mail mail) {
+
+	/** {@code publicUrl} is the browser-facing origin used to build links in emails. */
+	public record App(@NotNull URI publicUrl) {
+	}
 
 	/**
 	 * SEC EDGAR access settings. SEC requires a declared User-Agent containing a
@@ -35,6 +39,13 @@ public record FilingLensProperties(@Valid @NotNull Sec sec, @Valid @NotNull Stor
 	}
 
 	public record Storage(@NotNull Path rootPath) {
+	}
+
+	/**
+	 * Outgoing email. {@code logContent} logs full message bodies (which contain
+	 * single-use links) when no SMTP server is configured; enable only in development.
+	 */
+	public record Mail(@NotBlank String from, boolean logContent) {
 	}
 
 	public record Jobs(boolean enabled, @NotNull Duration pollInterval, @Min(1) @Max(100) int batchSize,

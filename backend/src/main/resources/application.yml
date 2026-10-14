@@ -11,6 +11,9 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+  session:
+    jdbc:
+      initialize-schema: never
   modulith:
     events:
       republish-outstanding-events-on-restart: true
@@ -27,6 +30,12 @@ server:
   port: 8080
   shutdown: graceful
   forward-headers-strategy: framework
+  servlet:
+    session:
+      timeout: 8h
+      cookie:
+        http-only: true
+        same-site: lax
   error:
     include-stacktrace: never
     include-message: never
@@ -47,6 +56,16 @@ logging:
     level: "%5p [%X{requestId:-}]"
 
 filinglens:
+  app:
+    public-url: ${APP_PUBLIC_URL:http://localhost:3000}
+  mail:
+    from: ${MAIL_FROM:FilingLens <no-reply@localhost>}
+    log-content: false
+  identity:
+    max-failed-logins: 5
+    lockout-duration: PT15M
+    email-verification-ttl: PT24H
+    password-reset-ttl: PT1H
   sec:
     user-agent: ${SEC_USER_AGENT}
     www-base-url: https://www.sec.gov

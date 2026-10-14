@@ -1,6 +1,7 @@
 # Full local stack. Requires a .env file (copy .env.example).
 #   docker compose --profile app up --build   -> http://localhost:3000
-# For day-to-day development run only Postgres here (docker compose up -d postgres)
+# For day-to-day development run only Postgres and Mailpit here
+# (docker compose up -d postgres mailpit)
 # and the apps natively; see README.md.
 name: filinglens
 
@@ -21,6 +22,13 @@ services:
       timeout: 5s
       retries: 10
 
+  # Development mail catcher: SMTP on 1025, web UI on http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.31.4
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
   backend:
     build: ./backend
     profiles: ["app"]
@@ -30,6 +38,12 @@ services:
       DB_USERNAME: ${POSTGRES_USER:-filinglens}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       SEC_USER_AGENT: ${SEC_USER_AGENT:?set SEC_USER_AGENT in .env}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:3000}
+      MAIL_FROM: ${MAIL_FROM:-FilingLens <no-reply@localhost>}
+      SPRING_MAIL_HOST: ${SMTP_HOST:-mailpit}
+      SPRING_MAIL_PORT: ${SMTP_PORT:-1025}
+      SPRING_MAIL_USERNAME: ${SMTP_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SMTP_PASSWORD:-}
     volumes:
       - blobs:/data/blobs
     ports:

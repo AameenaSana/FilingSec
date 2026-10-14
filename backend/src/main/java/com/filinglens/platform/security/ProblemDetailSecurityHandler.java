@@ -26,7 +26,7 @@ import tools.jackson.databind.json.JsonMapper;
  * {@code @RestControllerAdvice} does not apply.
  */
 @Component
-class ProblemDetailSecurityHandler implements AuthenticationEntryPoint, AccessDeniedHandler {
+public class ProblemDetailSecurityHandler implements AuthenticationEntryPoint, AccessDeniedHandler {
 
 	private final JsonMapper jsonMapper;
 
