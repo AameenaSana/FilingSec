@@ -1,5 +1,7 @@
 package com.filinglens.platform.security;
 
+import jakarta.servlet.DispatcherType;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -65,6 +67,9 @@ public class SecurityConfiguration {
 			SecurityContextRepository securityContextRepository, CookieCsrfTokenRepository csrfTokenRepository)
 			throws Exception {
 		http.authorizeHttpRequests(auth -> auth
+			// Async dispatches complete already-authorized requests (e.g. streamed answers).
+			.dispatcherTypeMatchers(DispatcherType.ASYNC)
+			.permitAll()
 			.requestMatchers("/api/v1/system/**", "/actuator/health/**", "/actuator/info", "/actuator/prometheus")
 			.permitAll()
 			.requestMatchers(PUBLIC_AUTH_ENDPOINTS)

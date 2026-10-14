@@ -40,6 +40,8 @@ services:
       SEC_USER_AGENT: ${SEC_USER_AGENT:?set SEC_USER_AGENT in .env}
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:3000}
       MAIL_FROM: ${MAIL_FROM:-FilingLens <no-reply@localhost>}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
       SPRING_MAIL_HOST: ${SMTP_HOST:-mailpit}
       SPRING_MAIL_PORT: ${SMTP_PORT:-1025}
       SPRING_MAIL_USERNAME: ${SMTP_USERNAME:-}

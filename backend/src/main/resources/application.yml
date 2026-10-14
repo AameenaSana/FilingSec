@@ -69,6 +69,21 @@ filinglens:
       cron: "0 0 6 * * *"
   filing:
     list-max-age: PT1H
+  research:
+    llm:
+      # Never commit keys: set LLM_API_KEY (or ANTHROPIC_API_KEY) in the environment.
+      api-key: ${LLM_API_KEY:${ANTHROPIC_API_KEY:}}
+      model: ${LLM_MODEL:claude-opus-5-5}
+      max-output-tokens: 64000
+      effort: medium
+    embeddings:
+      api-key: ${EMBEDDING_API_KEY:}
+      base-url: https://api.voyageai.com
+      model: ${EMBEDDING_MODEL:voyage-4}
+      dimensions: 1024
+      batch-size: 64
+    daily-token-limit-per-user: 2000000
+    passages-per-answer: 12
   identity:
     max-failed-logins: 5
     lockout-duration: PT15M
