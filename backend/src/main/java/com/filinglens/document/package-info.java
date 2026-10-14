@@ -3,7 +3,8 @@
  * XBRL or plain text) into form-aware sections and stable, citable text blocks,
  * and produces a sanitized, annotated copy for the in-app source viewer.
  * <p>
- * Public API: the {@link com.filinglens.document.DocumentParsed} event.
+ * Public API: {@link com.filinglens.document.DocumentContent} for reading parsed
+ * text and the {@link com.filinglens.document.DocumentParsed} event.
  */
 @ApplicationModule(displayName = "Document processing")
 package com.filinglens.document;
