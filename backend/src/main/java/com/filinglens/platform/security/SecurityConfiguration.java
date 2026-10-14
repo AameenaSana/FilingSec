@@ -6,15 +6,23 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.HeaderWriter;
+import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
+import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter;
+import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter.XFrameOptionsMode;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
  * HTTP security: deny by default, server-side sessions (persisted by Spring
@@ -26,6 +34,25 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
  */
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfiguration {
+
+	private static final String CSP = "Content-Security-Policy";
+
+	/** API responses are data, never documents: nothing may load or frame them. */
+	static final String API_CSP = "default-src 'none'; frame-ancestors 'none'";
+
+	/**
+	 * The filing source viewer: sanitized SEC HTML shown in a same-origin frame. No
+	 * scripts can run (no script-src, CSP sandbox without allow-scripts); only inline
+	 * styles and images from sec.gov load; links open in a new tab.
+	 */
+	static final String VIEWER_CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src https://www.sec.gov data:; "
+			+ "font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'; "
+			+ "sandbox allow-same-origin allow-popups allow-popups-to-escape-sandbox";
+
+	static final RequestMatcher VIEWER = PathPatternRequestMatcher.withDefaults()
+		.matcher(HttpMethod.GET, "/api/v1/filings/{accession}/source");
+
+	private static final RequestMatcher NOT_VIEWER = new NegatedRequestMatcher(VIEWER);
 
 	static final String LOGOUT_ENDPOINT = "/api/v1/auth/logout";
 
@@ -58,10 +85,17 @@ public class SecurityConfiguration {
 			.httpBasic(AbstractHttpConfigurer::disable)
 			.requestCache(AbstractHttpConfigurer::disable)
 			.exceptionHandling(ex -> ex.authenticationEntryPoint(problemHandler).accessDeniedHandler(problemHandler))
-			.headers(headers -> headers
-				.contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'none'; frame-ancestors 'none'"))
+			.headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable)
+				.addHeaderWriter(only(NOT_VIEWER, new XFrameOptionsHeaderWriter(XFrameOptionsMode.DENY)))
+				.addHeaderWriter(only(NOT_VIEWER, new StaticHeadersWriter(CSP, API_CSP)))
+				.addHeaderWriter(only(VIEWER, new XFrameOptionsHeaderWriter(XFrameOptionsMode.SAMEORIGIN)))
+				.addHeaderWriter(only(VIEWER, new StaticHeadersWriter(CSP, VIEWER_CSP)))
 				.httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31_536_000)));
 		return http.build();
+	}
+
+	private static HeaderWriter only(RequestMatcher matcher, HeaderWriter writer) {
+		return new DelegatingRequestMatcherHeaderWriter(matcher, writer);
 	}
 
 	/** Stores the security context in the HTTP session (backed by Spring Session JDBC). */

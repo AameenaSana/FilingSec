@@ -30,7 +30,8 @@ const nextConfig: NextConfig = {
     return [{ source: "/api/:path*", destination: `${backendUrl}/api/:path*` }];
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    // API responses (including the framed filing viewer) carry the backend's own headers.
+    return [{ source: "/((?!api/).*)", headers: securityHeaders }];
   },
 };
 
