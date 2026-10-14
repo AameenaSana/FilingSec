@@ -163,6 +163,31 @@ Every query on user-owned rows filters by `user_id` in the repository.
 - **Secrets:** only in environment variables; `.env` is gitignored; gitleaks runs in CI; logs never contain secrets.
 - **Abuse and supply chain:** per-user LLM quotas; Dependabot.
 
+### Research / RAG specifics (Phase 6)
+
+- **Indexing:**
+  - `DocumentParsed` → `research.index` job.
+  - Blocks are grouped per section into chunks of about 350 words (at most 600); headings start new chunks.
+  - Each chunk stores its block ordinals, refs and texts.
+  - Embeddings use Voyage `voyage-4` at 1024 dimensions, with `input_type` document or query, and are stored in `vector(1024)` with an HNSW index plus a generated English `tsvector`. Without `EMBEDDING_API_KEY`, chunks are indexed for full-text search only.
+- **Retrieval:**
+  - Hybrid: cosine vector search and an OR-of-terms full-text search, merged by reciprocal rank fusion (k = 60), top 12.
+  - Vector search computes exact distance over the conversation's filings, deliberately bypassing the approximate index, whose global candidates could all belong to other filings.
+  - Follow-up questions are retrieved together with the previous question.
+- **Answering:**
+  - Claude (`claude-opus-5-5`, effort `medium`) through the official Anthropic Java SDK, streamed. The model is configurable with `LLM_MODEL`.
+  - Each retrieved chunk is sent as a `search_result` content block whose content is the chunk's individual blocks, with citations enabled. Claude's `search_result_location` citations therefore identify the passage and an exact block range, which maps to our `block_ref`s and viewer ordinals.
+  - Server-side refusal fallbacks are enabled (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`). Refusals are stored as REFUSED without citations.
+  - The system prompt restricts answers to the provided passages, requires citations, and treats passage text as data, never instructions.
+- **Verification:** every citation's `cited_text` is checked verbatim (ignoring whitespace) against the stored text of the cited blocks. Unverified citations are kept but flagged in the UI.
+- **Audit:**
+  - Each answer stores its retrieval trace (chunk, fused score, vector and text ranks) and token usage.
+  - Per-user daily token quota (2M by default) and 20 questions per minute.
+  - Without `LLM_API_KEY`, Q&A returns `503 ai-not-configured`.
+- **Streaming:**
+  - `POST /api/v1/conversations/{id}/messages` returns `text/event-stream` with events `start`, `delta`, then `done` or `error`. Validation, not-ready and quota errors are returned as ProblemDetail before streaming starts.
+  - The response is marked `no-transform` so proxies and compression do not buffer it. Async dispatches are permitted in the security chain because the original request was already authorized.
+
 ### Comparison specifics (Phase 5)
 
 - **Lifecycle:** `WAITING → COMPUTING → READY | FAILED`.
@@ -277,7 +302,7 @@ EDGAR access is a separate `edgar` module. Both `company` and `filing` need it, 
 | 3 | Filing discovery, metadata, raw fetch | Done |
 | 4 | Document processing and source viewer | Done |
 | 5 | Comparison engine and diff UI | Done |
-| 6 | RAG Q&A with verified citations | |
+| 6 | RAG Q&A with verified citations | Done |
 | 7 | AI change interpretation and cross-company research | |
 | 8 | Workspace (sessions, findings) | |
 | 9 | Monitoring and notifications | |

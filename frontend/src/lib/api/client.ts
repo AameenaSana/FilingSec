@@ -9,7 +9,7 @@
  * - Converts RFC 9457 ProblemDetail error responses into {@link ApiError}.
  */
 
-const API_BASE = "/api/v1";
+export const API_BASE = "/api/v1";
 const CSRF_COOKIE = "XSRF-TOKEN";
 const CSRF_HEADER = "X-XSRF-TOKEN";
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -52,7 +52,7 @@ export function readCookie(name: string, cookieString: string = document.cookie)
     ?.slice(name.length + 1);
 }
 
-async function ensureCsrfToken(forceRefresh = false): Promise<string | undefined> {
+export async function ensureCsrfToken(forceRefresh = false): Promise<string | undefined> {
   if (forceRefresh || !readCookie(CSRF_COOKIE)) {
     await fetch(`${API_BASE}/auth/csrf`, { credentials: "same-origin" });
   }
@@ -97,7 +97,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   return (await response.json()) as T;
 }
 
-async function parseProblem(response: Response): Promise<ProblemDetail> {
+export async function parseProblem(response: Response): Promise<ProblemDetail> {
   try {
     return (await response.json()) as ProblemDetail;
   } catch {
