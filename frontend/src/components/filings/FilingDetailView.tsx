@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { CompareLauncher } from "@/components/comparison/CompareLauncher";
 import { DocumentReader } from "@/components/documents/DocumentReader";
+import { AskAboutFiling } from "@/components/research/AskAboutFiling";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { ApiError, errorMessage } from "@/lib/api/client";
@@ -99,7 +100,10 @@ export function FilingDetailView({ accession }: { accession: string }) {
         </section>
       )}
 
-      <CompareLauncher accession={filing.accessionNumber} />
+      <div className="flex flex-wrap items-start gap-4">
+        <CompareLauncher accession={filing.accessionNumber} />
+        <AskAboutFiling accession={filing.accessionNumber} />
+      </div>
 
       <Metadata filing={filing} />
 

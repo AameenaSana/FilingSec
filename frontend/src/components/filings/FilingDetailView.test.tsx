@@ -18,6 +18,7 @@ vi.mock("@/lib/api/filings", async (importOriginal) => ({
 // The document reader has its own tests.
 vi.mock("@/components/documents/DocumentReader", () => ({ DocumentReader: () => null }));
 vi.mock("@/components/comparison/CompareLauncher", () => ({ CompareLauncher: () => null }));
+vi.mock("@/components/research/AskAboutFiling", () => ({ AskAboutFiling: () => null }));
 
 const ACCESSION = "0000320193-25-000079";
 
