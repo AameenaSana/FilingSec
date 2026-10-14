@@ -19,6 +19,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
+import com.filinglens.company.CompanyRef;
 import com.filinglens.company.internal.CompanyViews.CompanyDetail;
 import com.filinglens.company.internal.CompanyViews.CompanySummary;
 import com.filinglens.edgar.Cik;
@@ -90,6 +91,13 @@ class CompanyRepository {
 		return jdbc.sql("SELECT id, profile_synced_at FROM company WHERE cik = :cik")
 			.param("cik", cik)
 			.query((rs, n) -> new CompanyRow(rs.getLong("id"), instant(rs, "profile_synced_at")))
+			.optional();
+	}
+
+	Optional<CompanyRef> findRef(long id) {
+		return jdbc.sql("SELECT id, cik, name FROM company WHERE id = :id")
+			.param("id", id)
+			.query((rs, n) -> new CompanyRef(rs.getLong("id"), rs.getString("cik"), rs.getString("name")))
 			.optional();
 	}
 

@@ -65,6 +65,35 @@ class JobQueueIntegrationTest {
 	}
 
 	@Test
+	void permanentFailureHookRunsOnceAfterTheLastAttempt() {
+		long id = queue.enqueue("test.last", Map.of());
+		jdbc.sql("UPDATE job SET max_attempts = 1 WHERE id = :id").param("id", id).update();
+		AtomicInteger hookCalls = new AtomicInteger();
+		JobHandler handler = new JobHandler() {
+			@Override
+			public String type() {
+				return "test.last";
+			}
+
+			@Override
+			public void handle(Job job) {
+				throw new IllegalStateException("always fails");
+			}
+
+			@Override
+			public void onPermanentFailure(Job job, Throwable cause) {
+				assertThat(cause).hasMessage("always fails");
+				hookCalls.incrementAndGet();
+			}
+		};
+
+		worker(handler).poll();
+
+		assertThat(status(id)).isEqualTo("FAILED");
+		assertThat(hookCalls).hasValue(1);
+	}
+
+	@Test
 	void unknownJobTypeFailsPermanently() {
 		long id = queue.enqueue("test.unknown", Map.of());
 

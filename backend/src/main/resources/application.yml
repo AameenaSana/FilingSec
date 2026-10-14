@@ -66,6 +66,8 @@ filinglens:
     directory-sync:
       enabled: true
       cron: "0 0 6 * * *"
+  filing:
+    list-max-age: PT1H
   identity:
     max-failed-logins: 5
     lockout-duration: PT15M
