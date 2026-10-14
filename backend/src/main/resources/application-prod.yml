@@ -1,0 +1,15 @@
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+
+# Actuator is served on a separate port that must not be exposed publicly.
+management:
+  server:
+    port: 8081
+
+logging:
+  structured:
+    format:
+      console: ecs

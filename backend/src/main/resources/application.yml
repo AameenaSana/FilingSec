@@ -1,0 +1,61 @@
+spring:
+  application:
+    name: filinglens
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  modulith:
+    events:
+      republish-outstanding-events-on-restart: true
+  mvc:
+    problemdetails:
+      enabled: true
+  threads:
+    virtual:
+      enabled: true
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: 8080
+  shutdown: graceful
+  forward-headers-strategy: framework
+  error:
+    include-stacktrace: never
+    include-message: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+logging:
+  pattern:
+    level: "%5p [%X{requestId:-}]"
+
+filinglens:
+  sec:
+    user-agent: ${SEC_USER_AGENT}
+    www-base-url: https://www.sec.gov
+    data-base-url: https://data.sec.gov
+    max-requests-per-second: 8
+  storage:
+    root-path: ${STORAGE_ROOT:./data/blobs}
+  jobs:
+    enabled: true
+    poll-interval: PT2S
+    batch-size: 5
+    lock-timeout: PT15M

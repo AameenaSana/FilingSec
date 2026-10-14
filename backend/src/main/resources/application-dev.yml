@@ -1,0 +1,11 @@
+# Local development against the docker-compose Postgres. These credentials are
+# local-only placeholders matching .env.example, not secrets.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/filinglens}
+    username: ${DB_USERNAME:filinglens}
+    password: ${DB_PASSWORD:change-me}
+
+filinglens:
+  storage:
+    root-path: ${STORAGE_ROOT:../data/blobs}
