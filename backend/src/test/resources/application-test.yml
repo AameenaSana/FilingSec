@@ -1,0 +1,8 @@
+filinglens:
+  sec:
+    user-agent: "FilingLens test test@example.com"
+  storage:
+    root-path: ${java.io.tmpdir}/filinglens-test-blobs
+  jobs:
+    # Tests drive the worker explicitly instead of relying on the scheduler.
+    enabled: false
