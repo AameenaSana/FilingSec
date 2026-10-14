@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { authApi, type Account } from "@/lib/api/auth";
 
 type AuthState =
@@ -23,32 +24,52 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: "loading", user: null });
+  const queryClient = useQueryClient();
+  const lastUserId = useRef<string | null>(null);
 
-  const refresh = useCallback(() => loadSession().then(setState), []);
+  const applySession = useCallback((next: AuthState) => {
+    if (next.user) {
+      lastUserId.current = next.user.id;
+    }
+    setState(next);
+  }, []);
+
+  const refresh = useCallback(() => loadSession().then(applySession), [applySession]);
 
   useEffect(() => {
     let cancelled = false;
-    loadSession().then((next) => !cancelled && setState(next));
+    loadSession().then((next) => !cancelled && applySession(next));
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [applySession]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       state,
       refresh,
-      setUser: (user) => setState({ status: "authenticated", user }),
+      setUser: (user) => {
+        if (lastUserId.current !== null && lastUserId.current !== user.id) {
+          queryClient.clear();
+        }
+        lastUserId.current = user.id;
+        setState({ status: "authenticated", user });
+      },
       signOut: async () => {
         try {
           await authApi.logout();
         } finally {
+          // Never show one user's cached data to the next.
+          queryClient.clear();
           setState({ status: "anonymous", user: null });
         }
       },
-      clear: () => setState({ status: "anonymous", user: null }),
+      clear: () => {
+        queryClient.clear();
+        setState({ status: "anonymous", user: null });
+      },
     }),
-    [state, refresh],
+    [state, refresh, queryClient],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

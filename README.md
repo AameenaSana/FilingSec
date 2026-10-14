@@ -58,5 +58,5 @@ cd frontend && npm test && npm run lint && npm run typecheck
 
 ## Status
 
-Phases 0 (foundations) and 1 (identity and accounts) are complete. See the phase plan in the
-architecture document.
+Phases 0 (foundations), 1 (identity and accounts) and 2 (companies, EDGAR client, watchlist)
+are complete. See the phase plan in the architecture document.

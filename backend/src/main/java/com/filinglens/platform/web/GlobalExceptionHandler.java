@@ -19,6 +19,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import com.filinglens.platform.error.DomainException;
@@ -85,6 +86,23 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 			.toList();
 		problem.setProperty("errors", errors);
 		return handleExceptionInternal(ex, problem, headers, status, request);
+	}
+
+	/** Constraint violations on path and query parameters. */
+	@Override
+	protected ResponseEntity<Object> handleHandlerMethodValidationException(HandlerMethodValidationException ex,
+			HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Request validation failed");
+		problem.setType(problemType("validation"));
+		List<Map<String, String>> errors = ex.getParameterValidationResults()
+			.stream()
+			.flatMap(result -> result.getResolvableErrors()
+				.stream()
+				.map(error -> Map.of("field", String.valueOf(result.getMethodParameter().getParameterName()),
+						"message", String.valueOf(error.getDefaultMessage()))))
+			.toList();
+		problem.setProperty("errors", errors);
+		return handleExceptionInternal(ex, problem, headers, HttpStatus.BAD_REQUEST, request);
 	}
 
 	@Override

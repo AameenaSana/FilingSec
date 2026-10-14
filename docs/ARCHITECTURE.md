@@ -37,8 +37,9 @@ Status: approved 2026-10-14. This document is the reference for the implementati
 |---|---|---|
 | `platform` (open) | ProblemDetail errors, request ids, logging, job queue, blob store, security baseline, config | — |
 | `identity` | users, sessions, password/email tokens, current user | platform |
-| `company` | CIK/ticker directory, company profile, watchlist | identity, platform |
-| `filing` | `EdgarClient` (the only class that calls sec.gov), filing metadata, raw fetch | company, platform |
+| `edgar` | `EdgarClient`: the only code that calls sec.gov (pacing, retries, throttle pause, gzip) | platform |
+| `company` | CIK/ticker directory, company profile, search, watchlist | edgar, identity, platform |
+| `filing` | filing metadata, raw fetch | edgar, company, platform |
 | `document` | parse → sections → blocks → chunks; sanitized annotated source HTML | filing, platform |
 | `comparison` | section/paragraph alignment, word diffs, AI interpretations | document, research API |
 | `research` | embeddings, hybrid retrieval, Q&A, cross-company, citations, LLM usage | document, filing |
@@ -162,6 +163,17 @@ Every query on user-owned rows filters by `user_id` in the repository.
 - **Secrets:** only in environment variables; `.env` is gitignored; gitleaks runs in CI; logs never contain secrets.
 - **Abuse and supply chain:** per-user LLM quotas; Dependabot.
 
+### EDGAR access specifics (Phase 2)
+
+EDGAR access is a separate `edgar` module. Both `company` and `filing` need it, and putting it in `filing` would have created a dependency cycle.
+- **Pacing:** requests are spaced evenly at ≤ 8/s per instance, so no one-second window exceeds the cap, unlike a bursty token bucket.
+- **Failures:**
+  - 429 and 5xx are retried up to 4 attempts, honoring `Retry-After`.
+  - A 403 pauses all SEC traffic for 10 minutes; SEC uses 403 for clients over its limits or not properly identified.
+- **Metrics:** outcomes are counted in `filinglens.edgar.requests`.
+- **Directory sync:** the ticker directory (`company_tickers_exchange.json`) syncs as a background job on first start and daily. Names from the directory never overwrite names from the submissions API, and a truncated download never deletes tickers.
+- **Profiles:** company profiles load from the submissions API on first view and refresh after 24 hours. If SEC is unavailable, the stored profile is served.
+
 ### Identity specifics (Phase 1)
 
 - **No account enumeration:**
@@ -199,7 +211,7 @@ Every query on user-owned rows filters by `user_id` in the repository.
 |---|---|---|
 | 0 | Foundations: skeletons, platform module, migrations baseline, Compose, CI | Done |
 | 1 | Identity and accounts | Done |
-| 2 | Companies, EDGAR client, watchlist | |
+| 2 | Companies, EDGAR client, watchlist | Done |
 | 3 | Filing discovery, metadata, raw fetch | |
 | 4 | Document processing and source viewer | |
 | 5 | Comparison engine and diff UI | |
