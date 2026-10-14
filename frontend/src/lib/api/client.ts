@@ -4,7 +4,8 @@
  *
  * - Sends cookies (session) with every request.
  * - Echoes the XSRF-TOKEN cookie as the X-XSRF-TOKEN header on state-changing
- *   requests, as required by the backend's CSRF protection.
+ *   requests, fetching a token first if none exists, as required by the
+ *   backend's CSRF protection.
  * - Converts RFC 9457 ProblemDetail error responses into {@link ApiError}.
  */
 
@@ -37,6 +38,11 @@ export class ApiError extends Error {
   get code(): string | undefined {
     return this.problem.type?.split(":").pop();
   }
+
+  /** Validation messages keyed by field name. */
+  get fieldErrors(): Record<string, string> {
+    return Object.fromEntries((this.problem.errors ?? []).map((e) => [e.field, e.message]));
+  }
 }
 
 export function readCookie(name: string, cookieString: string = document.cookie): string | undefined {
@@ -46,26 +52,41 @@ export function readCookie(name: string, cookieString: string = document.cookie)
     ?.slice(name.length + 1);
 }
 
+async function ensureCsrfToken(forceRefresh = false): Promise<string | undefined> {
+  if (forceRefresh || !readCookie(CSRF_COOKIE)) {
+    await fetch(`${API_BASE}/auth/csrf`, { credentials: "same-origin" });
+  }
+  const token = readCookie(CSRF_COOKIE);
+  return token ? decodeURIComponent(token) : undefined;
+}
+
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = (init.method ?? "GET").toUpperCase();
-  const headers = new Headers(init.headers);
-  headers.set("Accept", "application/json");
-  if (init.body !== undefined && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-  if (!SAFE_METHODS.has(method)) {
-    const token = readCookie(CSRF_COOKIE);
-    if (token) {
-      headers.set(CSRF_HEADER, decodeURIComponent(token));
+  const mutating = !SAFE_METHODS.has(method);
+
+  const send = async (refreshCsrf: boolean) => {
+    const headers = new Headers(init.headers);
+    headers.set("Accept", "application/json");
+    if (init.body !== undefined && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+    if (mutating) {
+      const token = await ensureCsrfToken(refreshCsrf);
+      if (token) {
+        headers.set(CSRF_HEADER, token);
+      }
+    }
+    return fetch(`${API_BASE}${path}`, { ...init, method, headers, credentials: "same-origin" });
+  };
+
+  let response = await send(false);
+  if (!response.ok && mutating && response.status === 403) {
+    const problem = await parseProblem(response.clone());
+    // A stale CSRF token yields a generic 403; refresh the token and retry once.
+    if (problem.type === "urn:filinglens:problem:forbidden") {
+      response = await send(true);
     }
   }
-
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    method,
-    headers,
-    credentials: "same-origin",
-  });
 
   if (!response.ok) {
     throw new ApiError(response.status, await parseProblem(response));
@@ -82,4 +103,12 @@ async function parseProblem(response: Response): Promise<ProblemDetail> {
   } catch {
     return { status: response.status, title: response.statusText };
   }
+}
+
+/** A user-presentable message for any error thrown by an API call. */
+export function errorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+  return "Something went wrong. Check your connection and try again.";
 }

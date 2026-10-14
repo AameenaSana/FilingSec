@@ -5,7 +5,13 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/filinglens}
     username: ${DB_USERNAME:filinglens}
     password: ${DB_PASSWORD:change-me}
+  # Mailpit from docker-compose (web UI: http://localhost:8025)
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
 
 filinglens:
+  mail:
+    log-content: true
   storage:
     root-path: ${STORAGE_ROOT:../data/blobs}

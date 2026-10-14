@@ -35,7 +35,7 @@ email (for example `FilingLens you@example.com`). The backend refuses to start w
 ```bash
 # 1. Database
 cp .env.example .env            # then edit values
-docker compose up -d postgres
+docker compose up -d postgres mailpit   # Mailpit catches emails: http://localhost:8025
 
 # 2. Backend (http://localhost:8080)
 cd backend
@@ -58,4 +58,5 @@ cd frontend && npm test && npm run lint && npm run typecheck
 
 ## Status
 
-Phase 0 (foundations) is complete. See the phase plan in the architecture document.
+Phases 0 (foundations) and 1 (identity and accounts) are complete. See the phase plan in the
+architecture document.

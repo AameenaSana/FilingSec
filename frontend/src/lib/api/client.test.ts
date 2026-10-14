@@ -69,4 +69,58 @@ describe("apiFetch", () => {
     expect(error.status).toBe(502);
     expect(error.message).toBe("Bad Gateway");
   });
+
+  it("fetches a CSRF token before the first state-changing request", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      if (String(input) === "/api/v1/auth/csrf") {
+        document.cookie = "XSRF-TOKEN=fresh";
+        return new Response(null, { status: 204 });
+      }
+      return jsonResponse({});
+    });
+
+    await apiFetch("/auth/login", { method: "POST", body: "{}" });
+
+    expect(fetchMock.mock.calls.map((call) => String(call[0]))).toEqual(["/api/v1/auth/csrf", "/api/v1/auth/login"]);
+    expect(new Headers(fetchMock.mock.calls[1][1]?.headers).get("X-XSRF-TOKEN")).toBe("fresh");
+  });
+
+  it("refreshes a stale CSRF token and retries once", async () => {
+    document.cookie = "XSRF-TOKEN=stale";
+    let attempts = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      if (String(input) === "/api/v1/auth/csrf") {
+        document.cookie = "XSRF-TOKEN=renewed";
+        return new Response(null, { status: 204 });
+      }
+      attempts++;
+      return attempts === 1
+        ? jsonResponse({ type: "urn:filinglens:problem:forbidden", status: 403 }, 403, "application/problem+json")
+        : jsonResponse({ ok: true });
+    });
+
+    await expect(apiFetch("/watchlist", { method: "POST", body: "{}" })).resolves.toEqual({ ok: true });
+
+    const lastCall = fetchMock.mock.calls.at(-1)!;
+    expect(new Headers(lastCall[1]?.headers).get("X-XSRF-TOKEN")).toBe("renewed");
+  });
+
+  it("does not retry domain-specific 403 errors", async () => {
+    document.cookie = "XSRF-TOKEN=tok";
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        jsonResponse({ type: "urn:filinglens:problem:email-not-verified", status: 403 }, 403, "application/problem+json"),
+      );
+
+    const error = (await apiFetch("/auth/login", { method: "POST", body: "{}" }).catch((e: unknown) => e)) as ApiError;
+
+    expect(error.code).toBe("email-not-verified");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("exposes validation errors by field", () => {
+    const error = new ApiError(400, { errors: [{ field: "email", message: "must be a well-formed email address" }] });
+    expect(error.fieldErrors).toEqual({ email: "must be a well-formed email address" });
+  });
 });
