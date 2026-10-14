@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
+import { DocumentReader } from "@/components/documents/DocumentReader";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { ApiError, errorMessage } from "@/lib/api/client";
@@ -87,6 +88,15 @@ export function FilingDetailView({ accession }: { accession: string }) {
           )}
         </div>
       </div>
+
+      {filing.status === "FETCHED" && (
+        <section aria-labelledby="reader-heading" className="flex flex-col gap-3">
+          <h2 id="reader-heading" className="font-semibold">
+            Document
+          </h2>
+          <DocumentReader accession={filing.accessionNumber} />
+        </section>
+      )}
 
       <Metadata filing={filing} />
 
