@@ -28,6 +28,7 @@ import java.util.function.Consumer;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -37,6 +38,7 @@ import com.filinglens.edgar.CompanySubmissions;
 import com.filinglens.edgar.EdgarClient;
 import com.filinglens.edgar.EdgarUnavailableException;
 import com.filinglens.edgar.FilingRecord;
+import com.filinglens.filing.FilingsDiscovered;
 import com.filinglens.filing.internal.FilingRepository.SyncState;
 import com.filinglens.filing.internal.FilingViews.FilingPage;
 import com.filinglens.filing.internal.FilingViews.FilingSummary;
@@ -60,6 +62,8 @@ class FilingDiscoveryServiceTest {
 
 	final TransactionTemplate transactions = mock(TransactionTemplate.class);
 
+	final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+
 	FilingDiscoveryService service;
 
 	@BeforeEach
@@ -71,7 +75,7 @@ class FilingDiscoveryServiceTest {
 			return null;
 		}).when(transactions).executeWithoutResult(any());
 		service = new FilingDiscoveryService(companies, edgar, filings, jobs, transactions,
-				new FilingProperties(Duration.ofHours(1)), Clock.fixed(NOW, ZoneOffset.UTC));
+				new FilingProperties(Duration.ofHours(1)), events, Clock.fixed(NOW, ZoneOffset.UTC));
 	}
 
 	@Test
@@ -88,7 +92,7 @@ class FilingDiscoveryServiceTest {
 
 	@Test
 	void staleListIsRefreshedAndOnlyTrackedFormsAreStored() {
-		when(filings.syncState(7)).thenReturn(new SyncState(null, Set.of()),
+		when(filings.syncState(7)).thenReturn(new SyncState(null, Set.of()), new SyncState(null, Set.of()),
 				new SyncState(NOW, Set.of("CIK0000320193-submissions-001.json")));
 		FilingRecord tenK = record("0000320193-25-000079", "10-K");
 		FilingRecord form4 = record("0001140361-25-040001", "4");
@@ -103,6 +107,24 @@ class FilingDiscoveryServiceTest {
 				argThat(payload -> ((Map<?, ?>) payload).get("files")
 					.equals(List.of("CIK0000320193-submissions-002.json"))),
 				eq(FilingHistoryImportJob.TYPE + ":7"));
+		// A company's first sync finds its history, not news.
+		verify(events, never()).publishEvent(any(Object.class));
+	}
+
+	@Test
+	void filingsNewSinceThePreviousSyncAreAnnounced() {
+		when(filings.syncState(7)).thenReturn(new SyncState(NOW.minus(Duration.ofDays(1)), Set.of()));
+		FilingRecord known = record("0000320193-25-000071", "10-Q");
+		FilingRecord fresh = record("0000320193-25-000079", "10-K");
+		when(edgar.fetchSubmissions("0000320193"))
+			.thenReturn(Optional.of(submissions(List.of(fresh, known), List.of())));
+		when(filings.knownAccessions(List.of("0000320193-25-000079", "0000320193-25-000071")))
+			.thenReturn(Set.of("0000320193-25-000071"));
+		when(filings.idsOf(List.of("0000320193-25-000079"))).thenReturn(List.of(42L));
+
+		service.list("320193", null, null, 25);
+
+		verify(events).publishEvent(new FilingsDiscovered(7, "0000320193", List.of(42L)));
 	}
 
 	@Test

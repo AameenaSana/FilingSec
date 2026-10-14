@@ -6,7 +6,9 @@
  * Results are factual differences only. Interpretations of their significance
  * are produced and stored separately.
  * <p>
- * Public API: the {@link com.filinglens.comparison.ComparisonCompleted} event.
+ * Public API: {@link com.filinglens.comparison.ChangeLookup},
+ * {@link com.filinglens.comparison.ComparisonRequests} and the
+ * {@link com.filinglens.comparison.ComparisonCompleted} event.
  */
 @ApplicationModule(displayName = "Comparison")
 package com.filinglens.comparison;

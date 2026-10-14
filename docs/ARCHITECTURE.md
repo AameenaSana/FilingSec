@@ -41,11 +41,12 @@ Status: approved 2026-10-14. This document is the reference for the implementati
 | `company` | CIK/ticker directory, company profile, search, watchlist | edgar, identity, platform |
 | `filing` | filing metadata, raw fetch | edgar, company, platform |
 | `document` | parse → sections → blocks → chunks; sanitized annotated source HTML | filing, platform |
-| `comparison` | section/paragraph alignment, word diffs, AI interpretations | document, research API |
+| `ai` | `AiModel` (Claude via the Anthropic Java SDK, citations, refusal fallbacks) and `AiUsage` (per-user token quota) | platform |
+| `comparison` | section/paragraph alignment, word diffs, AI interpretations | document, filing, ai |
 | `research` | embeddings, hybrid retrieval, Q&A, cross-company, citations, LLM usage | document, filing |
-| `workspace` | research sessions, findings | identity, research API, comparison API |
-| `monitoring` | polling watched companies, notifications, SSE, email | company, filing |
-| `dashboard` | read-only aggregates | API packages of the others |
+| `workspace` | research sessions, findings, Markdown export | research (`CitationLookup`), comparison (`ChangeLookup`), document (`DocumentContent.block`), filing |
+| `monitoring` | polling watched companies, notifications, SSE, email, auto-compare | company (`Watchlists`), filing (`FilingsDiscovered`, `refreshRecent`), comparison (`ComparisonRequests`, `ComparisonCompleted`), identity (`UserDirectory`) |
+| `dashboard` | read-only overview (counts, recent filings, changes, notifications, research) | none in code; reads other modules' tables, scoped to the user |
 
 Events: `FilingDiscovered` → `FilingFetched` → `FilingParsed` → `FilingIndexed`, plus `ComparisonCompleted` and `NewFilingForWatchedCompany`.
 
@@ -97,6 +98,7 @@ Compliance:
   - `finding` (references a citation, change or block, plus a quoted snapshot)
 - **monitoring:**
   - `company_poll_state`
+  - `monitored_comparison`
   - `notification`
   - `notification_preference`
 - **platform:**
@@ -117,8 +119,8 @@ Every query on user-owned rows filters by `user_id` in the repository.
 | Filings | `GET /filings/{acc}`, `GET /filings/{acc}/documents`, `GET /filings/{acc}/status`, `POST /filings/{acc}/process`, `GET /filings/{acc}/sections`, `GET /filings/{acc}/blocks`, `GET /filings/{acc}/blocks/{ref}`, `GET /filings/{acc}/source` |
 | Comparison | `POST /comparisons`, `GET /companies/{cik}/comparison-candidates`, `GET /comparisons/{id}`, `GET /comparisons/{id}/sections`, `GET /comparisons/{id}/sections/{key}/changes`, `POST /comparisons/{id}/sections/{key}/interpretation`, `GET /comparisons/{id}/interpretations` |
 | Research | `POST /conversations`, `GET /conversations`, `GET`/`PATCH`/`DELETE /conversations/{id}`, `POST /conversations/{id}/messages` (SSE), `GET /citations/{id}`, `POST /research/cross-company` |
-| Workspace | CRUD on `/research-sessions`, `/research-sessions/{id}/findings`; `GET /findings` |
-| Notifications | `GET /notifications`, `POST /notifications/{id}/read`, `POST /notifications/read-all`, `GET /notifications/stream`, `GET`/`PUT /notification-preferences` |
+| Workspace | `GET`/`POST /research-sessions`, `GET`/`PATCH`/`DELETE /research-sessions/{id}`, `GET /research-sessions/{id}/export` (Markdown), `POST /findings`, `GET /findings?sessionId=&unfiled=&q=&tag=`, `PATCH`/`DELETE /findings/{id}` |
+| Notifications | `GET /notifications?unreadOnly=&limit=` (with `unreadCount`), `POST /notifications/{id}/read`, `POST /notifications/read-all`, `GET /notifications/stream` (SSE), `GET`/`PUT /notification-preferences` |
 | Dashboard | `GET /dashboard` |
 | Admin | `GET /admin/jobs`, `POST /admin/jobs/{id}/retry` |
 
@@ -162,6 +164,57 @@ Every query on user-owned rows filters by `user_id` in the repository.
 - **Prompt injection:** filing text is treated as untrusted data; the model has no tools; citations are validated after generation.
 - **Secrets:** only in environment variables; `.env` is gitignored; gitleaks runs in CI; logs never contain secrets.
 - **Abuse and supply chain:** per-user LLM quotas; Dependabot.
+
+### Hardening (Phase 11)
+
+- **End-to-end tests:** Playwright (`frontend/e2e`) runs the real stack against a stub of SEC EDGAR (`e2e/stub-sec.mjs`, one company with two annual reports) and Mailpit: sign-up with email verification, company search and watch, document processing and the sandboxed viewer, saving a passage, period comparison, workspace and dashboard; plus access-control, CSRF and header checks. CI job `e2e`.
+- **RAG evaluation:** a fictional annual report and questions with one known answering passage each (`backend/src/test/resources/rag-eval`). Retrieval quality (recall@k, MRR) is measured in CI; a live answer evaluation (verified citations, answering passage cited, refusals) runs on demand. See DEPLOYMENT.md §10.
+- **Performance:** indexes for finding/session/conversation cascades and the dashboard's comparison list (V11); HTTP compression for JSON and HTML (never for event streams); an ETag on the filing viewer so unchanged multi-megabyte documents are revalidated with 304; a configurable connection pool.
+- **Security review:** see SECURITY.md. Added rate limits for conversation creation, cross-company research and workspace writes; a per-user session cap; a 256 KB API body limit; and a Content-Security-Policy and HSTS on frontend pages.
+
+### Dashboard specifics (Phase 10)
+
+- **One request:** `GET /api/v1/dashboard` returns the whole overview, read in a single read-only transaction so counts and lists agree.
+- **Contents:** summary counts (watched companies, filings in the last 30 days, unread notifications, saved findings, last successful SEC check); watched companies with their latest filing of a followed form and unread count; the 15 most recent filings of watched companies in the forms each is followed for (last 90 days); the 6 most recent completed comparisons of watched companies with added/removed/modified/moved counts; the 5 latest notifications; the 5 latest conversations and research sessions.
+- **Read model:** the `dashboard` module owns no tables and has no public API. Its SQL reads other modules' tables directly, always filtered by the user's watchlist or `user_id`, and never writes.
+- **Freshness:** the page refetches every 2 minutes and immediately when a live notification arrives. New users without a watchlist see a getting-started guide.
+
+### Monitoring specifics (Phase 9)
+
+- **Polling:**
+  - Every minute a scheduler claims each watched company not polled within `filinglens.monitoring.poll-interval` (default 15 minutes) with an atomic upsert on `company_poll_state`, and queues a `monitoring.poll` job. A company is polled once per interval however many users watch it, even with several instances.
+  - The job calls `FilingCatalog.refreshRecent`, which goes through the shared EDGAR client and so keeps to SEC's rate limit and back-off. Failures are retried by the job queue; the last error is kept on the poll state.
+- **Discovery:** the filing module publishes `FilingsDiscovered` whenever a refresh (by the poller or by a user browsing) stores filings it did not know, except on a company's first sync, whose filings are history rather than news. At most the 10 most recent new filings are acted on at once.
+- **Notifications:**
+  - Each watcher who follows the filing's form and has notifications on for the company gets a `NEW_FILING` notification. A unique key (user, type, filing) makes repeats harmless.
+  - New filings are downloaded and processed automatically, so they are ready to read and question. A new original 10-K or 10-Q is compared with its suggested predecessor (previous annual report, or the same quarter a year earlier); when that comparison completes, watchers get a `COMPARISON_READY` notification linking to it.
+  - Delivery: stored in the app; pushed live over `GET /notifications/stream` (SSE with `unread` and `notification` events and a 25-second keep-alive, at most 5 connections per user); and emailed through a retried `monitoring.email` job unless the user turned email off in settings or has not verified their address. Pushes are sent after the transaction commits.
+  - Live pushes reach connections on the instance that handled the event. With several instances, other clients catch up on the next list refresh (the header refetches every 2 minutes).
+- **Configuration:** `MONITORING_ENABLED`, `MONITORING_POLL_INTERVAL`; tests disable the scheduler.
+
+### Workspace specifics (Phase 8)
+
+- **Findings are references, resolved by the server:** the client sends only a source reference: a citation id, a comparison change (comparison id, section key, change ordinal) or a filing passage (accession, block ordinal). The server reads the quote and source details through `CitationLookup`, `ChangeLookup` and `DocumentContent.block` and stores a snapshot. Saved evidence is therefore always genuine filing text with a working link to its location, and a client cannot save invented quotes.
+- **Change findings:** a MODIFIED change keeps both the earlier and the later text with links to each. A REMOVED change quotes the earlier filing.
+- **Ownership:** every query is scoped by `user_id`. Citations resolve only within the user's own conversations, and findings can be filed only in the user's own sessions.
+- **Sessions:** deleting a session keeps its findings as unfiled (`ON DELETE SET NULL`). Notes are free text; tags are normalized (lower case, hyphenated, at most 10 per finding). Each user can keep at most 5,000 findings.
+- **Export:** `GET /research-sessions/{id}/export` returns Markdown, oldest finding first, with each quote, note, tags, a link to the SEC filing index and a link to the passage in FilingLens.
+- **UI:** "Save finding" on cited sources, change cards and a clicked passage in the filing reader; `/workspace` lists sessions and searchable, tag-filterable findings; `/workspace/sessions/{id}` edits, exports and deletes a session.
+
+### AI interpretation and cross-company specifics (Phase 7)
+
+- **`ai` module:** owns the LLM (`AiModel`: grounded generation with `search_result` passages and citations), the configuration (`filinglens.ai.*`) and usage accounting (`AiUsage`). Both `research` and `comparison` depend on it, so the LLM is not reached through another feature module.
+- **Change interpretations:**
+  - Generated per comparison section on request, as the background job `comparison.interpret`.
+  - Each non-numeric change is sent as one passage: earlier and later text for MODIFIED, a single side otherwise. At most 60 changes or about 60K characters are sent, and the UI says when changes were left out.
+  - The response starts with `Significance: HIGH|MEDIUM|LOW|NONE`, which is parsed off. Citations map to change ordinals and are verified against the change texts.
+  - Stored in `change_interpretation`, separate from `text_change`, and shared per section and prompt version. The requester's quota is charged.
+  - The UI shows it in a distinct, labelled "AI interpretation" panel that links to the change cards it cites. The factual change list stays the primary record.
+- **Cross-company comparison:**
+  - `POST /api/v1/conversations/cross-company` takes 2–4 CIKs, a form and an optional fiscal year.
+  - It resolves each company's latest original filing of the form via `FilingCatalog.latestFiling`, refreshing the filing list from SEC if stale. The fiscal year is the calendar year in which the period of report ends.
+  - It creates a conversation over those filings.
+  - Conversations spanning several companies retrieve passages evenly per company (interleaved), and the system prompt asks for a per-company answer with each company cited to its own filing, followed by similarities and differences.
 
 ### Research / RAG specifics (Phase 6)
 
@@ -303,8 +356,8 @@ EDGAR access is a separate `edgar` module. Both `company` and `filing` need it, 
 | 4 | Document processing and source viewer | Done |
 | 5 | Comparison engine and diff UI | Done |
 | 6 | RAG Q&A with verified citations | Done |
-| 7 | AI change interpretation and cross-company research | |
-| 8 | Workspace (sessions, findings) | |
-| 9 | Monitoring and notifications | |
-| 10 | Dashboard | |
-| 11 | Hardening: E2E, RAG evaluation, performance, security review, deployment docs | |
+| 7 | AI change interpretation and cross-company research | Done |
+| 8 | Workspace (sessions, findings) | Done |
+| 9 | Monitoring and notifications | Done |
+| 10 | Dashboard | Done |
+| 11 | Hardening: E2E, RAG evaluation, performance, security review, deployment docs | Done |

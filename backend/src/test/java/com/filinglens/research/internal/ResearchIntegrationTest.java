@@ -12,9 +12,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 import com.filinglens.IntegrationTest;
-import com.filinglens.research.internal.AnswerModel.Answer;
-import com.filinglens.research.internal.AnswerModel.Cite;
-import com.filinglens.research.internal.AnswerModel.Segment;
+import com.filinglens.ai.AiModel;
+import com.filinglens.ai.AiModel.AiResponse;
+import com.filinglens.ai.AiModel.Cite;
+import com.filinglens.ai.AiModel.Segment;
 
 @IntegrationTest
 class ResearchIntegrationTest {
@@ -88,7 +89,7 @@ class ResearchIntegrationTest {
 
 		long question = conversations.addMessage(id, "USER", "What AI risks?", "COMPLETE", NOW);
 		long answer = conversations.addMessage(id, "ASSISTANT", "", "STREAMING", NOW);
-		var mapped = CitationMapper.map(new Answer(List.of(new Segment("AI may fail.",
+		var mapped = CitationMapper.map(new AiResponse(List.of(new Segment("AI may fail.",
 				List.of(new Cite(0, 0, 1, "AI features may not be successful.")))), false, "end_turn", "m", 1, 1, 0),
 				List.of(chunk));
 		conversations.finishMessage(answer, "AI may fail.", "COMPLETE", "claude-opus-5-5", 10L, 5L, 0L, null);
@@ -100,13 +101,9 @@ class ResearchIntegrationTest {
 		assertThat(citation.filing().companyName()).isEqualTo("Apple Inc.");
 		assertThat(citation.blockRefs()).containsExactly("10K.ITEM_1A/p1");
 		assertThat(citation.verified()).isTrue();
-		assertThat(conversations.history(id, answer + 1, 6)).extracting(AnswerModel.Turn::fromUser)
+		assertThat(conversations.history(id, answer + 1, 6)).extracting(AiModel.Turn::fromUser)
 			.containsExactly(true, false);
 		assertThat(conversations.history(id, question, 6)).isEmpty();
-
-		conversations.recordUsage(alice, "answer", "claude-opus-5-5", 100, 50, NOW);
-		assertThat(conversations.tokensUsedSince(alice, NOW.minusSeconds(60))).isEqualTo(150);
-		assertThat(conversations.tokensUsedSince(bob, NOW.minusSeconds(60))).isZero();
 	}
 
 	private UUID user(String email) {

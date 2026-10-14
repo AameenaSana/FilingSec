@@ -3,6 +3,7 @@ import { Fragment } from "react";
 import { sectionLabel } from "@/lib/api/documents";
 import { formatDate } from "@/lib/api/filings";
 import type { Citation } from "@/lib/api/research";
+import { SaveFindingButton } from "@/components/workspace/SaveFindingButton";
 
 /**
  * An answer with citation markers placed after the text each citation supports,
@@ -12,11 +13,13 @@ import type { Citation } from "@/lib/api/research";
 export function AnswerText({ messageId, content, citations }: { messageId: number; content: string; citations: Citation[] }) {
   const markersAt = new Map<number, number[]>();
   for (const citation of citations) {
-    const ordinals = markersAt.get(citation.answerEnd) ?? [];
+    // A marker belongs after the text it supports; clamp offsets that overrun the text.
+    const end = Math.min(citation.answerEnd, content.length);
+    const ordinals = markersAt.get(end) ?? [];
     if (!ordinals.includes(citation.ordinal)) {
       ordinals.push(citation.ordinal);
     }
-    markersAt.set(citation.answerEnd, ordinals);
+    markersAt.set(end, ordinals);
   }
   const boundaries = [...markersAt.keys()].filter((at) => at > 0 && at <= content.length).sort((a, b) => a - b);
 
@@ -63,6 +66,7 @@ export function AnswerText({ messageId, content, citations }: { messageId: numbe
                   >
                     View in filing ({source.blockRefs.join(", ")})
                   </Link>
+                  <SaveFindingButton source={{ type: "CITATION", citationId: source.id }} />
                   {!source.verified && (
                     <span className="rounded bg-amber-100 px-1.5 py-0.5 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                       Quote not found verbatim in the source — check before relying on it

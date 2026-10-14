@@ -5,6 +5,8 @@ import java.util.List;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
@@ -37,6 +39,12 @@ class ResearchController {
 
 	static final RateLimiter.Limit QUESTIONS = new RateLimiter.Limit("questions", 20, Duration.ofMinutes(1));
 
+	/** New conversations index filings and may call the embedding API. */
+	static final RateLimiter.Limit CONVERSATIONS = new RateLimiter.Limit("conversations", 10, Duration.ofMinutes(1));
+
+	/** Each cross-company request may read several companies' filings from SEC. */
+	static final RateLimiter.Limit CROSS_COMPANY = new RateLimiter.Limit("cross-company", 5, Duration.ofMinutes(1));
+
 	private final ResearchService research;
 
 	private final RateLimiter rateLimiter;
@@ -51,6 +59,11 @@ class ResearchController {
 			@Size(max = 200) String title) {
 	}
 
+	record CrossCompanyRequest(@NotEmpty @Size(min = 2, max = 4) List<@Pattern(regexp = "\\d{1,10}") String> ciks,
+			@NotBlank @Pattern(regexp = "10-K|10-Q|8-K") String formType, @Min(1994) @Max(2100) Integer fiscalYear,
+			@Size(max = 120) String topic) {
+	}
+
 	record RenameRequest(@NotBlank @Size(max = 200) String title) {
 	}
 
@@ -60,7 +73,20 @@ class ResearchController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	ConversationView create(@AuthenticationPrincipal UserPrincipal user, @Valid @RequestBody CreateRequest body) {
+		rateLimiter.acquireOrThrow(CONVERSATIONS, user.getName());
 		return research.create(user.id(), body.filings(), body.title());
+	}
+
+	/**
+	 * Starts a cross-company comparison: each company's latest filing of the form
+	 * (for the fiscal year, if given) becomes the conversation's scope.
+	 */
+	@PostMapping("/cross-company")
+	@ResponseStatus(HttpStatus.CREATED)
+	ConversationView createCrossCompany(@AuthenticationPrincipal UserPrincipal user,
+			@Valid @RequestBody CrossCompanyRequest body) {
+		rateLimiter.acquireOrThrow(CROSS_COMPANY, user.getName());
+		return research.createCrossCompany(user.id(), body.ciks(), body.formType(), body.fiscalYear(), body.topic());
 	}
 
 	@GetMapping

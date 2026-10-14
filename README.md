@@ -58,9 +58,14 @@ cd frontend && npm test && npm run lint && npm run typecheck
 
 ## Status
 
-Phases 0 (foundations), 1 (identity and accounts), 2 (companies, EDGAR client, watchlist) and
-3 (filing discovery, metadata and document fetching) , 4 (document processing and source
-viewer), 5 (filing comparison) and 6 (grounded Q&A with verified citations) are complete.
+Phases 0 (foundations), 1 (identity and accounts), 2 (companies, EDGAR client, watchlist),
+3 (filing discovery, metadata and document fetching), 4 (document processing and source
+viewer), 5 (filing comparison), 6 (grounded Q&A with verified citations), 7 (AI change
+interpretation and cross-company comparison), 8 (research workspace: sessions, findings,
+Markdown export), 9 (monitoring of watched companies with in-app, live and email
+notifications), 10 (dashboard) and 11 (hardening: end-to-end tests, RAG evaluation,
+performance, security review) are complete. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for
+running in production and [docs/SECURITY.md](docs/SECURITY.md) for the security review.
 
 Question answering needs `LLM_API_KEY` (Anthropic) in `.env`; semantic search additionally uses
 `EMBEDDING_API_KEY` (Voyage AI). Without the embedding key, retrieval falls back to keyword search. See the phase plan in the architecture document.

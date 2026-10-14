@@ -11,25 +11,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * AI configuration. Secrets come only from the environment. Without an LLM key
- * the Q&A endpoints report that AI is not configured; without an embedding key
- * retrieval uses full-text search only.
+ * Retrieval configuration. Without an embedding key retrieval uses full-text
+ * search only. The LLM is configured in the AI module.
  */
 @Validated
 @ConfigurationProperties(prefix = "filinglens.research")
-record ResearchProperties(@Valid @NotNull Llm llm, @Valid @NotNull Embeddings embeddings,
-		@Min(1) long dailyTokenLimitPerUser, @Min(1) int passagesPerAnswer) {
-
-	/**
-	 * @param effort Claude effort level: low, medium, high, xhigh or max
-	 */
-	record Llm(String apiKey, @NotBlank String model, @Min(1024) long maxOutputTokens, @NotBlank String effort) {
-
-		boolean configured() {
-			return apiKey != null && !apiKey.isBlank();
-		}
-
-	}
+record ResearchProperties(@Valid @NotNull Embeddings embeddings, @Min(1) int passagesPerAnswer) {
 
 	/**
 	 * @param dimensions must match the {@code vector(1024)} column

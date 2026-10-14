@@ -25,6 +25,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
+import com.filinglens.ai.AiNotConfiguredException;
 import com.filinglens.identity.UserPrincipal;
 import com.filinglens.platform.error.NotFoundException;
 import com.filinglens.platform.ratelimit.RateLimiter;
@@ -67,7 +68,7 @@ class ResearchApiTest {
 
 	@Test
 	void unconfiguredAiIsReportedAsProblemDetail() throws Exception {
-		when(research.ask(eq(USER.id()), eq(1L), anyString())).thenThrow(new ResearchService.AiNotConfiguredException());
+		when(research.ask(eq(USER.id()), eq(1L), anyString())).thenThrow(new AiNotConfiguredException());
 
 		mvc.perform(post("/api/v1/conversations/1/messages").with(user())
 			.with(csrf())

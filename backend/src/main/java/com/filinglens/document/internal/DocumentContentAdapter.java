@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 import com.filinglens.document.DocumentContent;
+import com.filinglens.document.LocatedBlock;
 import com.filinglens.document.SectionText;
 import com.filinglens.document.internal.DocumentRepository.ParseState;
 import com.filinglens.filing.FilingCatalog;
@@ -52,6 +53,11 @@ class DocumentContentAdapter implements DocumentContent {
 		else {
 			service.requestParse(filingId);
 		}
+	}
+
+	@Override
+	public Optional<LocatedBlock> block(long filingId, int ordinal) {
+		return documents.locate(filingId, ordinal);
 	}
 
 	@Override

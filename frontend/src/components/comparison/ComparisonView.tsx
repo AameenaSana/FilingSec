@@ -16,6 +16,8 @@ import {
   type TextChange,
 } from "@/lib/api/comparisons";
 import { sectionLabel } from "@/lib/api/documents";
+import { SaveFindingButton } from "@/components/workspace/SaveFindingButton";
+import { InterpretationPanel } from "./InterpretationPanel";
 import { formatDate } from "@/lib/api/filings";
 
 const POLL_MS = 3000;
@@ -23,7 +25,7 @@ const POLL_MS = 3000;
 const periodOf = (filing: ComparedFiling) =>
   filing.reportDate ? `period ended ${formatDate(filing.reportDate)}` : `filed ${formatDate(filing.filingDate)}`;
 
-export function ComparisonView({ id }: { id: number }) {
+export function ComparisonView({ id, initialSection }: { id: number; initialSection?: string }) {
   const { data: comparison, error, isPending } = useQuery({
     queryKey: comparisonKeys.detail(id),
     queryFn: () => comparisonsApi.get(id),
@@ -58,7 +60,7 @@ export function ComparisonView({ id }: { id: number }) {
       {comparison.status === "FAILED" && (
         <Alert tone="error">{comparison.detail ?? "The comparison could not be completed."}</Alert>
       )}
-      {comparison.status === "READY" && <Results comparison={comparison} />}
+      {comparison.status === "READY" && <Results comparison={comparison} initialSection={initialSection} />}
     </div>
   );
 }
@@ -86,9 +88,9 @@ function Header({ comparison }: { comparison: Comparison }) {
   );
 }
 
-function Results({ comparison }: { comparison: Comparison }) {
+function Results({ comparison, initialSection }: { comparison: Comparison; initialSection?: string }) {
   const changed = comparison.sections.filter((s) => s.added + s.removed + s.modified + s.moved > 0);
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(initialSection ?? null);
   const [includeNumericOnly, setIncludeNumericOnly] = useState(true);
   const selected = comparison.sections.find((s) => s.key === selectedKey) ?? changed[0] ?? comparison.sections[0];
   const stats = comparison.stats!;
@@ -138,6 +140,9 @@ function Results({ comparison }: { comparison: Comparison }) {
             <input type="checkbox" checked={includeNumericOnly} onChange={(e) => setIncludeNumericOnly(e.target.checked)} />
             Include changes that differ only in numbers ({stats.numericOnly})
           </label>
+          {selected && selected.added + selected.removed + selected.modified + selected.moved > 0 && (
+            <InterpretationPanel key={selected.key} comparisonId={comparison.id} sectionKey={selected.key} />
+          )}
           {selected && (
             <SectionChanges comparison={comparison} section={selected} includeNumericOnly={includeNumericOnly} />
           )}
@@ -192,7 +197,7 @@ function SectionChanges({
     <ol className="flex flex-col gap-3">
       {changes.map((change) => (
         <li key={change.ordinal}>
-          <ChangeCard change={change} comparison={comparison} />
+          <ChangeCard change={change} comparison={comparison} sectionKey={section.key} />
         </li>
       ))}
     </ol>
@@ -206,11 +211,12 @@ const TYPE_STYLE: Record<TextChange["type"], { label: string; className: string 
   MOVED: { label: "Moved", className: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300" },
 };
 
-function ChangeCard({ change, comparison }: { change: TextChange; comparison: Comparison }) {
+function ChangeCard({ change, comparison, sectionKey }: { change: TextChange; comparison: Comparison; sectionKey: string }) {
   const style = TYPE_STYLE[change.type];
   return (
-    <article className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+    <article id={`change-${change.ordinal}`} className="scroll-mt-4 rounded-lg border border-zinc-200 p-4 target:ring-2 target:ring-violet-400 dark:border-zinc-800">
       <header className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+        <span className="text-zinc-500">#{change.ordinal}</span>
         <span className={`rounded px-1.5 py-0.5 font-medium ${style.className}`}>{style.label}</span>
         {change.numericOnly && <span className="text-zinc-500">numbers only</span>}
         {change.type === "MOVED" && change.base && <span className="text-zinc-500">from {change.base.ref}</span>}
@@ -242,6 +248,7 @@ function ChangeCard({ change, comparison }: { change: TextChange; comparison: Co
             View in later filing ({change.target.ref})
           </Link>
         )}
+        <SaveFindingButton source={{ type: "CHANGE", comparisonId: comparison.id, sectionKey, changeOrdinal: change.ordinal }} />
       </footer>
     </article>
   );

@@ -10,6 +10,8 @@ import java.util.Optional;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import com.filinglens.company.CompanyDirectory;
+import com.filinglens.company.CompanyRef;
 import com.filinglens.edgar.Accession;
 import com.filinglens.filing.FilingCatalog;
 import com.filinglens.filing.FilingRef;
@@ -29,9 +31,16 @@ class FilingCatalogAdapter implements FilingCatalog {
 
 	private final FilingService filings;
 
-	FilingCatalogAdapter(JdbcClient jdbc, FilingService filings) {
+	private final CompanyDirectory companies;
+
+	private final FilingDiscoveryService discovery;
+
+	FilingCatalogAdapter(JdbcClient jdbc, FilingService filings, CompanyDirectory companies,
+			FilingDiscoveryService discovery) {
 		this.jdbc = jdbc;
 		this.filings = filings;
+		this.companies = companies;
+		this.discovery = discovery;
 	}
 
 	@Override
@@ -59,6 +68,28 @@ class FilingCatalogAdapter implements FilingCatalog {
 				ORDER BY COALESCE(f.report_date, f.filing_date) DESC, f.filing_date DESC
 				LIMIT :limit
 				""").param("id", filingId).param("limit", limit).query((rs, n) -> ref(rs)).list();
+	}
+
+	@Override
+	public Optional<FilingRef> latestFiling(String cik, String baseForm, Integer fiscalYear) {
+		CompanyRef company = companies.resolve(cik);
+		discovery.refreshIfStale(company);
+		return jdbc.sql(SELECT + """
+				WHERE f.company_id = :company AND f.form_type = :form
+				  AND (CAST(:year AS int) IS NULL OR EXTRACT(YEAR FROM COALESCE(f.report_date, f.filing_date)) = :year)
+				ORDER BY COALESCE(f.report_date, f.filing_date) DESC, f.filing_date DESC
+				LIMIT 1
+				""")
+			.param("company", company.id())
+			.param("form", baseForm)
+			.param("year", fiscalYear)
+			.query((rs, n) -> ref(rs))
+			.optional();
+	}
+
+	@Override
+	public void refreshRecent(String cik) {
+		discovery.refresh(companies.resolve(cik));
 	}
 
 	@Override

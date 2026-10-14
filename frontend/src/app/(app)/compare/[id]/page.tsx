@@ -5,17 +5,19 @@ import { ComparisonView } from "@/components/comparison/ComparisonView";
 
 export const metadata: Metadata = { title: "Comparison · FilingLens" };
 
-export default function ComparisonPage({ params }: PageProps<"/compare/[id]">) {
+export default function ComparisonPage({ params, searchParams }: PageProps<"/compare/[id]">) {
   return (
     <div className="max-w-6xl">
       {/* The comparison id is only known at request time. */}
       <Suspense fallback={<p className="text-sm text-zinc-500">Loading comparison…</p>}>
-        {params.then(({ id }) => {
+        {Promise.all([params, searchParams]).then(([{ id }, query]) => {
           const numericId = Number(id);
           if (!Number.isSafeInteger(numericId) || numericId <= 0) {
             notFound();
           }
-          return <ComparisonView id={numericId} />;
+          // ?section= opens a section, e.g. when following a saved finding.
+          const section = typeof query.section === "string" ? query.section : undefined;
+          return <ComparisonView id={numericId} initialSection={section} />;
         })}
       </Suspense>
     </div>

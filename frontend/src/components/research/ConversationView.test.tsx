@@ -51,6 +51,7 @@ describe("ConversationView", () => {
           createdAt: "",
           citations: [
             {
+              id: 1,
               ordinal: 1,
               filing,
               sectionKey: "10K.ITEM_1A",
@@ -104,6 +105,15 @@ describe("ConversationView", () => {
     renderWithQuery(<ConversationView id={7} />);
 
     expect(await screen.findByText(/not configured on this server/)).toBeInTheDocument();
+  });
+
+  it("asks a pre-filled question once the filings are ready", async () => {
+    get.mockResolvedValue(conversation());
+    streamQuestion.mockResolvedValue(undefined);
+    renderWithQuery(<ConversationView id={7} initialQuestion="Compare AI risks" />);
+
+    await waitFor(() => expect(streamQuestion).toHaveBeenCalledTimes(1));
+    expect(streamQuestion).toHaveBeenCalledWith(7, "Compare AI risks", expect.anything());
   });
 
   it("shows errors raised before streaming and restores the question", async () => {

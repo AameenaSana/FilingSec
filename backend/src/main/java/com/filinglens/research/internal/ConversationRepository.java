@@ -18,6 +18,7 @@ import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
+import com.filinglens.ai.AiModel;
 import com.filinglens.research.internal.CitationMapper.MappedCitation;
 import com.filinglens.research.internal.ResearchViews.CitationView;
 import com.filinglens.research.internal.ResearchViews.ConversationSummary;
@@ -163,8 +164,8 @@ class ConversationRepository {
 	}
 
 	/** Earlier completed turns, oldest first, for conversational context. */
-	List<AnswerModel.Turn> history(long conversationId, long beforeMessageId, int limit) {
-		List<AnswerModel.Turn> turns = new ArrayList<>(jdbc.sql("""
+	List<AiModel.Turn> history(long conversationId, long beforeMessageId, int limit) {
+		List<AiModel.Turn> turns = new ArrayList<>(jdbc.sql("""
 				SELECT role, content FROM message
 				WHERE conversation_id = :c AND id < :before AND status = 'COMPLETE'
 				ORDER BY id DESC LIMIT :limit
@@ -172,15 +173,15 @@ class ConversationRepository {
 			.param("c", conversationId)
 			.param("before", beforeMessageId)
 			.param("limit", limit)
-			.query((rs, n) -> new AnswerModel.Turn("USER".equals(rs.getString("role")), rs.getString("content")))
+			.query((rs, n) -> new AiModel.Turn("USER".equals(rs.getString("role")), rs.getString("content")))
 			.list());
 		Collections.reverse(turns);
 		// The API requires alternating turns starting with the user.
 		while (!turns.isEmpty() && !turns.getFirst().fromUser()) {
 			turns.removeFirst();
 		}
-		List<AnswerModel.Turn> alternating = new ArrayList<>();
-		for (AnswerModel.Turn turn : turns) {
+		List<AiModel.Turn> alternating = new ArrayList<>();
+		for (AiModel.Turn turn : turns) {
 			if (alternating.isEmpty() || alternating.getLast().fromUser() != turn.fromUser()) {
 				alternating.add(turn);
 			}
@@ -235,7 +236,7 @@ class ConversationRepository {
 	List<MessageView> messages(long conversationId) {
 		Map<Long, List<CitationView>> citations = new HashMap<>();
 		jdbc.sql("""
-				SELECT ci.message_id, ci.ordinal, ci.section_key, ci.section_title, ci.block_refs, ci.first_block_ordinal,
+				SELECT ci.id AS citation_id, ci.message_id, ci.ordinal, ci.section_key, ci.section_title, ci.block_refs, ci.first_block_ordinal,
 				       ci.cited_text, ci.answer_start, ci.answer_end, ci.verified,
 				       f.id, f.accession_number, c.cik, c.name, f.form_type, f.report_date, f.filing_date
 				FROM citation ci
@@ -246,7 +247,7 @@ class ConversationRepository {
 				ORDER BY ci.message_id, ci.id
 				""").param("c", conversationId).query((rs, n) -> {
 			citations.computeIfAbsent(rs.getLong("message_id"), k -> new ArrayList<>())
-				.add(new CitationView(rs.getInt("ordinal"), filingInfo(rs), rs.getString("section_key"),
+				.add(new CitationView(rs.getLong("citation_id"), rs.getInt("ordinal"), filingInfo(rs), rs.getString("section_key"),
 						rs.getString("section_title"), strings(rs.getArray("block_refs")),
 						rs.getInt("first_block_ordinal"), rs.getString("cited_text"), rs.getInt("answer_start"),
 						rs.getInt("answer_end"), rs.getBoolean("verified")));
@@ -260,29 +261,6 @@ class ConversationRepository {
 					rs.getString("status"), rs.getTimestamp("created_at").toInstant(),
 					citations.getOrDefault(rs.getLong("id"), List.of())))
 			.list();
-	}
-
-	// --- Usage -------------------------------------------------------------------
-
-	long tokensUsedSince(UUID userId, Instant since) {
-		return jdbc.sql("""
-				SELECT COALESCE(SUM(input_tokens + output_tokens), 0) FROM llm_usage
-				WHERE user_id = :user AND created_at >= :since
-				""").param("user", userId).param("since", Timestamp.from(since)).query(Long.class).single();
-	}
-
-	void recordUsage(UUID userId, String purpose, String model, long inputTokens, long outputTokens, Instant now) {
-		jdbc.sql("""
-				INSERT INTO llm_usage (user_id, purpose, model, input_tokens, output_tokens, created_at)
-				VALUES (:user, :purpose, :model, :input, :output, :now)
-				""")
-			.param("user", userId)
-			.param("purpose", purpose)
-			.param("model", model)
-			.param("input", (int) inputTokens)
-			.param("output", (int) outputTokens)
-			.param("now", Timestamp.from(now))
-			.update();
 	}
 
 	private static FilingInfo filingInfo(ResultSet rs) throws SQLException {

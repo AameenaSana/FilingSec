@@ -8,6 +8,7 @@ import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -17,6 +18,7 @@ import com.filinglens.edgar.CompanySubmissions;
 import com.filinglens.edgar.EdgarClient;
 import com.filinglens.edgar.EdgarUnavailableException;
 import com.filinglens.edgar.FilingRecord;
+import com.filinglens.filing.FilingsDiscovered;
 import com.filinglens.filing.internal.FilingRepository.Cursor;
 import com.filinglens.filing.internal.FilingRepository.SyncState;
 import com.filinglens.filing.internal.FilingViews.FilingPage;
@@ -47,16 +49,20 @@ class FilingDiscoveryService {
 
 	private final FilingProperties properties;
 
+	private final ApplicationEventPublisher events;
+
 	private final Clock clock;
 
 	FilingDiscoveryService(CompanyDirectory companies, EdgarClient edgar, FilingRepository filings, JobQueue jobs,
-			TransactionTemplate transactions, FilingProperties properties, Clock clock) {
+			TransactionTemplate transactions, FilingProperties properties, ApplicationEventPublisher events,
+			Clock clock) {
 		this.companies = companies;
 		this.edgar = edgar;
 		this.filings = filings;
 		this.jobs = jobs;
 		this.transactions = transactions;
 		this.properties = properties;
+		this.events = events;
 		this.clock = clock;
 	}
 
@@ -97,15 +103,30 @@ class FilingDiscoveryService {
 		}
 	}
 
-	/** Reads recent filings from EDGAR now and queues import of any unimported history pages. */
+	/**
+	 * Reads recent filings from EDGAR now and queues import of any unimported history
+	 * pages. Filings new since the previous sync are announced with
+	 * {@link FilingsDiscovered}.
+	 */
 	void refresh(CompanyRef company) {
 		CompanySubmissions submissions = edgar.fetchSubmissions(company.cik()).orElse(null);
 		Instant now = clock.instant();
 		transactions.executeWithoutResult(status -> {
+			boolean firstSync = filings.syncState(company.id()).recentSyncedAt() == null;
 			if (submissions != null) {
-				int added = filings.insertNew(company.id(), tracked(submissions.recentFilings()), now);
+				List<FilingRecord> recent = tracked(submissions.recentFilings());
+				Set<String> known = filings
+					.knownAccessions(recent.stream().map(FilingRecord::accessionNumber).toList());
+				int added = filings.insertNew(company.id(), recent, now);
 				if (added > 0) {
 					log.info("Discovered {} new filings for CIK {}", added, company.cik());
+				}
+				List<String> fresh = recent.stream()
+					.map(FilingRecord::accessionNumber)
+					.filter(a -> !known.contains(a))
+					.toList();
+				if (!firstSync && !fresh.isEmpty()) {
+					events.publishEvent(new FilingsDiscovered(company.id(), company.cik(), filings.idsOf(fresh)));
 				}
 			}
 			filings.markRecentSynced(company.id(), now);

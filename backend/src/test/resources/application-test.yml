@@ -7,6 +7,9 @@ filinglens:
     directory-sync:
       # Tests never call SEC.
       enabled: false
+  monitoring:
+    # Tests never call SEC.
+    enabled: false
   jobs:
     # Tests drive the worker explicitly instead of relying on the scheduler.
     enabled: false

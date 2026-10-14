@@ -1,0 +1,125 @@
+{
+  "description": "Fictional annual report used to evaluate retrieval and grounded answers. Every company, figure and event in it is invented.",
+  "company": "Northwind Devices, Inc.",
+  "formType": "10-K",
+  "reportDate": "2025-12-31",
+  "sections": [
+    {
+      "key": "10K.ITEM_1",
+      "title": "Item 1. Business",
+      "blocks": [
+        "HEADING:Overview",
+        "Northwind Devices, Inc. designs and sells industrial sensors, edge computing gateways and the Northwind Cloud monitoring service to manufacturers, utilities and logistics operators. The Company was incorporated in Delaware in 2004 and is headquartered in Columbus, Ohio. Its fiscal year ends on December 31.",
+        "The Company reports three segments: Sensors, Gateways and Cloud Services. Sensors accounted for 52% of net sales in 2025, Gateways for 31% and Cloud Services for 17%. Cloud Services is sold as annual or multi-year subscriptions billed in advance.",
+        "HEADING:Customers and Distribution",
+        "The Company sells directly to large enterprise accounts and through approximately 140 value-added resellers in North America, Europe and Asia. No single customer accounted for more than 10% of net sales in 2025. The ten largest customers together represented 27% of net sales, compared with 24% in 2024.",
+        "HEADING:Manufacturing and Suppliers",
+        "Substantially all sensor assembly is performed by two contract manufacturers located in Penang, Malaysia and Guadalajara, Mexico. The Company relies on a single supplier, Kestrel Semiconductor, for the custom low-power signal processor used in its flagship VX sensor line, and has entered into a supply agreement with Kestrel that runs through 2028.",
+        "HEADING:Research and Development",
+        "Research and development expense was $118.4 million in 2025, or 13.9% of net sales. Development is concentrated in Columbus, Ohio and Kraków, Poland. The Company's current priorities include on-device anomaly detection, battery life improvements and expanding the Northwind Cloud analytics features.",
+        "HEADING:Human Capital",
+        "As of December 31, 2025, the Company had approximately 3,450 full-time employees, of whom 41% worked in research and development. Voluntary employee turnover was 9.8% in 2025. The Company offers an employee stock purchase plan that allows eligible employees to buy shares at a 15% discount.",
+        "HEADING:Seasonality",
+        "Net sales are typically highest in the fourth quarter because many utility and manufacturing customers spend remaining capital budgets before their fiscal year ends. The fourth quarter of 2025 represented 31% of annual net sales."
+      ]
+    },
+    {
+      "key": "10K.ITEM_1A",
+      "title": "Item 1A. Risk Factors",
+      "blocks": [
+        "HEADING:Risks Related to Supply Chain",
+        "The Company depends on a sole source for the signal processor in its VX sensors. If Kestrel Semiconductor were unable or unwilling to supply processors on acceptable terms, the Company could experience shipment delays of six months or more while qualifying an alternative design, which would materially reduce Sensors segment revenue.",
+        "Tariffs and trade restrictions affecting components shipped from Asia could increase the Company's costs. A 25% tariff on assembled sensors imported from Malaysia, if imposed, would reduce gross margin by an estimated 3 to 4 percentage points unless offset by price increases or manufacturing relocation.",
+        "HEADING:Risks Related to Technology and Products",
+        "Machine learning models in the Northwind Cloud service may produce inaccurate anomaly alerts. False negatives could cause customers to miss equipment failures, exposing the Company to warranty claims, contract penalties and reputational damage, while excessive false alarms could lead customers to cancel subscriptions.",
+        "Product defects in firmware updates distributed over the air could disable deployed devices at scale. In March 2025 a faulty gateway firmware release required a rollback affecting approximately 18,000 devices, and similar incidents in the future could result in significant remediation costs.",
+        "HEADING:Risks Related to Regulation",
+        "The Company's products that connect to electric utility infrastructure are subject to evolving critical infrastructure security standards. New certification requirements in the European Union under the Cyber Resilience Act could delay product launches and increase compliance costs beginning in 2027.",
+        "Changes in data protection laws could restrict the Company's ability to transfer sensor telemetry from European customers to its data centers in the United States, which could require additional regional infrastructure investment.",
+        "HEADING:Financial Risks",
+        "The Company's revolving credit facility contains a covenant requiring a maximum consolidated leverage ratio of 3.0 to 1.0. A significant decline in operating results could cause the Company to breach this covenant, which would allow lenders to accelerate repayment of outstanding borrowings.",
+        "Fluctuations in foreign currency exchange rates, particularly the euro and the Polish zloty, affect reported revenue and operating expenses. Approximately 34% of net sales in 2025 were denominated in currencies other than the U.S. dollar."
+      ]
+    },
+    {
+      "key": "10K.ITEM_1C",
+      "title": "Item 1C. Cybersecurity",
+      "blocks": [
+        "The Company maintains an information security program aligned with the NIST Cybersecurity Framework. The program is led by the Chief Information Security Officer, who has more than twenty years of experience in industrial control system security and reports to the Chief Technology Officer.",
+        "The Audit Committee of the Board of Directors oversees cybersecurity risk and receives a report from the Chief Information Security Officer each quarter. The Company engages an independent firm to perform penetration testing of the Northwind Cloud platform twice a year.",
+        "In 2025 the Company did not identify any cybersecurity incident that materially affected, or is reasonably likely to materially affect, its business strategy, results of operations or financial condition."
+      ]
+    },
+    {
+      "key": "10K.ITEM_2",
+      "title": "Item 2. Properties",
+      "blocks": [
+        "The Company leases its 210,000 square foot headquarters in Columbus, Ohio under a lease that expires in 2033. It also leases a research center in Kraków, Poland, sales offices in Munich, Singapore and Toronto, and a distribution warehouse in Memphis, Tennessee. The Company owns no real property."
+      ]
+    },
+    {
+      "key": "10K.ITEM_3",
+      "title": "Item 3. Legal Proceedings",
+      "blocks": [
+        "In August 2024, Halvorsen Instruments filed a complaint in the U.S. District Court for the District of Delaware alleging that the Company's VX sensors infringe two Halvorsen patents relating to vibration signal filtering. Halvorsen seeks unspecified damages and an injunction. The Company believes the claims are without merit and intends to defend vigorously; trial is scheduled for the second half of 2026.",
+        "The Company is also subject to other legal proceedings and claims arising in the ordinary course of business, none of which management currently expects to have a material adverse effect on its financial position."
+      ]
+    },
+    {
+      "key": "10K.ITEM_5",
+      "title": "Item 5. Market for Registrant's Common Equity",
+      "blocks": [
+        "The Company's common stock trades on the Nasdaq Global Select Market under the symbol NWDV. As of February 10, 2026, there were approximately 410 holders of record.",
+        "In 2025 the Company paid quarterly cash dividends of $0.22 per share, totaling $0.88 per share for the year. In February 2026 the Board of Directors increased the quarterly dividend to $0.25 per share.",
+        "In November 2024 the Board authorized a program to repurchase up to $400 million of common stock. During 2025 the Company repurchased 2.1 million shares for $186.3 million, and $171.5 million remained available under the authorization at year end."
+      ]
+    },
+    {
+      "key": "10K.ITEM_7",
+      "title": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+      "blocks": [
+        "HEADING:Results of Operations",
+        "Net sales were $851.6 million in 2025, an increase of 11.2% from $765.8 million in 2024. Growth was driven primarily by Cloud Services, whose net sales grew 29% as the number of paid subscriptions rose to 61,000, and by higher Gateway volumes from utility grid modernization projects.",
+        "Sensors segment net sales increased 4% to $442.8 million. Higher unit volumes were partially offset by lower average selling prices for the older T-series sensors, which the Company discounted ahead of their planned discontinuation in 2026.",
+        "HEADING:Gross Margin",
+        "Gross margin was 46.3% in 2025 compared with 44.1% in 2024. The improvement reflected the higher mix of Cloud Services, which carries a gross margin above 70%, and lower freight costs, partially offset by expedite fees paid to secure signal processors during a temporary shortage in the second quarter.",
+        "HEADING:Operating Expenses",
+        "Selling, general and administrative expense rose 8% to $201.7 million, mainly due to additional sales headcount in Europe and higher legal fees related to the Halvorsen patent litigation, which totaled $7.9 million in 2025.",
+        "HEADING:Liquidity and Capital Resources",
+        "As of December 31, 2025, the Company had cash, cash equivalents and marketable securities of $512.0 million and $150 million outstanding under its $500 million revolving credit facility, which matures in October 2029. Cash provided by operating activities was $164.5 million in 2025.",
+        "Capital expenditures were $42.6 million in 2025, primarily for test equipment at the contract manufacturers and data center capacity for Northwind Cloud. The Company expects capital expenditures of approximately $55 million in 2026, including a new manufacturing line in Guadalajara intended to reduce dependence on Malaysian assembly.",
+        "HEADING:Critical Accounting Estimates",
+        "Revenue from contracts that combine devices with multi-year Cloud Services subscriptions is allocated based on relative standalone selling prices. Estimating standalone selling prices for subscriptions requires significant judgment because the Company rarely sells subscriptions separately to new customers.",
+        "The Company records warranty reserves at the time of sale based on historical failure rates. Following the March 2025 firmware incident, the Company increased its warranty reserve by $6.2 million."
+      ]
+    },
+    {
+      "key": "10K.ITEM_7A",
+      "title": "Item 7A. Quantitative and Qualitative Disclosures About Market Risk",
+      "blocks": [
+        "Borrowings under the revolving credit facility bear interest at a floating rate based on SOFR plus a margin of 1.25%. A hypothetical increase of 100 basis points in interest rates would increase annual interest expense by approximately $1.5 million based on borrowings outstanding at December 31, 2025.",
+        "The Company uses forward contracts to hedge a portion of forecasted euro-denominated operating expenses. A hypothetical 10% strengthening of the U.S. dollar against all foreign currencies would have reduced 2025 net sales by approximately $29 million."
+      ]
+    },
+    {
+      "key": "10K.ITEM_8",
+      "title": "Item 8. Financial Statements and Supplementary Data",
+      "blocks": [
+        "HEADING:Note 9 — Income Taxes",
+        "The effective tax rate was 19.4% in 2025 compared with 21.7% in 2024. The decrease resulted mainly from a larger research and development tax credit and the release of a valuation allowance on Polish deferred tax assets.",
+        "As of December 31, 2025, the Company had unrecognized tax benefits of $14.8 million, of which $11.2 million would reduce the effective tax rate if recognized.",
+        "HEADING:Note 11 — Leases",
+        "Operating lease right-of-use assets were $96.3 million and operating lease liabilities were $104.9 million as of December 31, 2025. The weighted-average remaining lease term was 6.8 years.",
+        "HEADING:Note 14 — Stock-Based Compensation",
+        "Stock-based compensation expense was $48.7 million in 2025. As of year end, unrecognized compensation cost related to unvested restricted stock units was $97.0 million, expected to be recognized over a weighted-average period of 2.3 years."
+      ]
+    },
+    {
+      "key": "10K.ITEM_9A",
+      "title": "Item 9A. Controls and Procedures",
+      "blocks": [
+        "Management concluded that the Company's disclosure controls and procedures were effective as of December 31, 2025. The Company's independent registered public accounting firm, Ashford & Lane LLP, issued an unqualified opinion on the effectiveness of internal control over financial reporting."
+      ]
+    }
+  ]
+}

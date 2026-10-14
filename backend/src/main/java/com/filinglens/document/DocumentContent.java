@@ -1,6 +1,7 @@
 package com.filinglens.document;
 
 import java.util.List;
+import java.util.Optional;
 
 /** Read access to parsed filing text for other modules. */
 public interface DocumentContent {
@@ -23,6 +24,9 @@ public interface DocumentContent {
 	 * parse if it is downloaded but not parsed with the current parser.
 	 */
 	void prepare(long filingId);
+
+	/** A block by its position in the document, if the filing is parsed. */
+	Optional<LocatedBlock> block(long filingId, int ordinal);
 
 	/** Sections in document order; empty unless {@link State#PARSED}. */
 	List<SectionText> read(long filingId);

@@ -1,4 +1,4 @@
-package com.filinglens.research.internal;
+package com.filinglens.ai.internal;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,29 +29,30 @@ import com.anthropic.models.beta.messages.BetaTextBlock;
 import com.anthropic.models.beta.messages.BetaTextBlockParam;
 import com.anthropic.models.beta.messages.BetaTextCitation;
 import com.anthropic.models.beta.messages.MessageCreateParams;
+import com.filinglens.ai.AiModel;
+import com.filinglens.ai.AiNotConfiguredException;
 
 /**
- * Answers with Claude via the official Java SDK. Retrieved passages are sent as
- * {@code search_result} content blocks with citations enabled, so Claude's
+ * {@link AiModel} backed by Claude via the official Java SDK. Passages are sent
+ * as {@code search_result} content blocks with citations enabled, so Claude's
  * citations identify the exact passage and block range each claim comes from.
  * Server-side refusal fallbacks are enabled.
  */
 @Component
-class ClaudeAnswerModel implements AnswerModel {
+class ClaudeAiModel implements AiModel {
 
-	private static final Logger log = LoggerFactory.getLogger(ClaudeAnswerModel.class);
+	private static final Logger log = LoggerFactory.getLogger(ClaudeAiModel.class);
 
-	private final ResearchProperties.Llm settings;
+	private final AiProperties settings;
 
 	private final AnthropicClient client;
 
 	@Autowired
-	ClaudeAnswerModel(ResearchProperties properties) {
-		this(properties.llm(), properties.llm().configured()
-				? AnthropicOkHttpClient.builder().apiKey(properties.llm().apiKey()).build() : null);
+	ClaudeAiModel(AiProperties settings) {
+		this(settings, settings.configured() ? AnthropicOkHttpClient.builder().apiKey(settings.apiKey()).build() : null);
 	}
 
-	ClaudeAnswerModel(ResearchProperties.Llm settings, AnthropicClient client) {
+	ClaudeAiModel(AiProperties settings, AnthropicClient client) {
 		this.settings = settings;
 		this.client = client;
 	}
@@ -62,13 +63,12 @@ class ClaudeAnswerModel implements AnswerModel {
 	}
 
 	@Override
-	public Answer answer(AnswerRequest request, Consumer<String> onText) {
+	public AiResponse generate(AiRequest request, Consumer<String> onText) {
 		if (client == null) {
-			throw new IllegalStateException("No LLM API key is configured");
+			throw new AiNotConfiguredException();
 		}
-		MessageCreateParams params = params(request);
 		BetaMessageAccumulator accumulator = BetaMessageAccumulator.create();
-		try (StreamResponse<BetaRawMessageStreamEvent> stream = client.beta().messages().createStreaming(params)) {
+		try (StreamResponse<BetaRawMessageStreamEvent> stream = client.beta().messages().createStreaming(params(request))) {
 			stream.stream().forEach(event -> {
 				accumulator.accumulate(event);
 				event.contentBlockDelta()
@@ -76,10 +76,10 @@ class ClaudeAnswerModel implements AnswerModel {
 					.ifPresent(text -> onText.accept(text.text()));
 			});
 		}
-		return toAnswer(accumulator.message());
+		return toResponse(accumulator.message());
 	}
 
-	MessageCreateParams params(AnswerRequest request) {
+	MessageCreateParams params(AiRequest request) {
 		MessageCreateParams.Builder builder = MessageCreateParams.builder()
 			.model(settings.model())
 			.maxTokens(settings.maxOutputTokens())
@@ -105,12 +105,12 @@ class ClaudeAnswerModel implements AnswerModel {
 			passage.blocks().forEach(text -> result.addContent(BetaTextBlockParam.builder().text(text).build()));
 			content.add(BetaContentBlockParam.ofSearchResult(result.build()));
 		}
-		content.add(BetaContentBlockParam.ofText(BetaTextBlockParam.builder().text(request.question()).build()));
+		content.add(BetaContentBlockParam.ofText(BetaTextBlockParam.builder().text(request.prompt()).build()));
 		builder.addUserMessageOfBetaContentBlockParams(content);
 		return builder.build();
 	}
 
-	private static Answer toAnswer(BetaMessage message) {
+	private static AiResponse toResponse(BetaMessage message) {
 		List<Segment> segments = new ArrayList<>();
 		for (BetaContentBlock block : message.content()) {
 			block.text().ifPresent(text -> segments.add(segment(text)));
@@ -118,10 +118,10 @@ class ClaudeAnswerModel implements AnswerModel {
 		boolean refused = message.stopReason().map(BetaStopReason.REFUSAL::equals).orElse(false);
 		if (refused) {
 			message.stopDetails()
-				.ifPresent(details -> log.warn("Answer refused: category={}", details.category().orElse(null)));
+				.ifPresent(details -> log.warn("Request refused: category={}", details.category().orElse(null)));
 		}
 		long cacheRead = message.usage().cacheReadInputTokens().orElse(0L);
-		return new Answer(segments, refused, message.stopReason().map(Object::toString).orElse(null),
+		return new AiResponse(segments, refused, message.stopReason().map(Object::toString).orElse(null),
 				message.model().toString(), message.usage().inputTokens(), message.usage().outputTokens(), cacheRead);
 	}
 

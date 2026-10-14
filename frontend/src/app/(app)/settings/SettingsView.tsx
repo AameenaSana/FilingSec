@@ -2,6 +2,7 @@
 
 import { ChangePasswordForm } from "@/components/settings/ChangePasswordForm";
 import { DeleteAccountForm } from "@/components/settings/DeleteAccountForm";
+import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { ProfileForm } from "@/components/settings/ProfileForm";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
@@ -14,6 +15,7 @@ export function SettingsView() {
     <div className="flex max-w-2xl flex-col gap-6">
       <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
       <ProfileForm account={state.user} />
+      <NotificationSettings />
       <ChangePasswordForm />
       <DeleteAccountForm />
     </div>

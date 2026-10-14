@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { ApiError, errorMessage } from "@/lib/api/client";
@@ -17,7 +17,7 @@ interface Pending {
   answer: string;
 }
 
-export function ConversationView({ id }: { id: number }) {
+export function ConversationView({ id, initialQuestion }: { id: number; initialQuestion?: string }) {
   const queryClient = useQueryClient();
   const { data: conversation, error, isPending } = useQuery({
     queryKey: researchKeys.detail(id),
@@ -25,7 +25,8 @@ export function ConversationView({ id }: { id: number }) {
     refetchInterval: (query) =>
       query.state.data?.readiness.some((r) => r.status === "PREPARING") ? POLL_MS : false,
   });
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] = useState(initialQuestion ?? "");
+  const autoAsked = useRef(false);
   const [pending, setPending] = useState<Pending | null>(null);
   const [askError, setAskError] = useState<string | null>(null);
 
@@ -44,9 +45,12 @@ export function ConversationView({ id }: { id: number }) {
   const unavailable = conversation.readiness.some((r) => r.status === "UNAVAILABLE");
   const canAsk = conversation.aiAvailable && !preparing && !unavailable && pending === null;
 
-  async function ask(event: FormEvent<HTMLFormElement>) {
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const text = question.trim();
+    void ask(question.trim());
+  }
+
+  async function ask(text: string) {
     if (!text) {
       return;
     }
@@ -103,7 +107,14 @@ export function ConversationView({ id }: { id: number }) {
 
       {askError && <Alert tone="error">{askError}</Alert>}
 
-      <form onSubmit={ask} className="flex flex-col gap-2">
+      <AutoAsk
+        enabled={!!initialQuestion && canAsk && conversation.messages.length === 0 && !autoAsked.current}
+        onReady={() => {
+          autoAsked.current = true;
+          void ask(initialQuestion!.trim());
+        }}
+      />
+      <form onSubmit={onSubmit} className="flex flex-col gap-2">
         <label htmlFor="question" className="sr-only">
           Question
         </label>
@@ -128,6 +139,16 @@ export function ConversationView({ id }: { id: number }) {
       </form>
     </div>
   );
+}
+
+/** Fires once when enabled, e.g. to ask a pre-filled question when the filings become ready. */
+function AutoAsk({ enabled, onReady }: { enabled: boolean; onReady: () => void }) {
+  useEffect(() => {
+    if (enabled) {
+      onReady();
+    }
+  }, [enabled, onReady]);
+  return null;
 }
 
 function Header({ conversation }: { conversation: Conversation }) {

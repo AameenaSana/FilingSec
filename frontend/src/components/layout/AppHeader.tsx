@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 const NAV = [
@@ -9,6 +10,7 @@ const NAV = [
   { href: "/companies", label: "Companies" },
   { href: "/watchlist", label: "Watchlist" },
   { href: "/research", label: "Research" },
+  { href: "/workspace", label: "Workspace" },
   { href: "/settings", label: "Settings" },
 ];
 
@@ -41,6 +43,7 @@ export function AppHeader() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-4 text-sm">
+          {state.user && <NotificationBell />}
           {state.user && <span className="text-zinc-600 dark:text-zinc-400">{state.user.displayName}</span>}
           <button type="button" onClick={onSignOut} className="font-medium underline-offset-4 hover:underline">
             Sign out

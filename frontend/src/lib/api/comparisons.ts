@@ -66,6 +66,27 @@ export interface TextChange {
   diff: DiffOp[] | null;
 }
 
+export interface InterpretationCitation {
+  marker: number;
+  changeOrdinal: number;
+  citedText: string;
+  answerStart: number;
+  answerEnd: number;
+  verified: boolean;
+}
+
+export interface Interpretation {
+  status: "PENDING" | "READY" | "REFUSED" | "FAILED";
+  significance: "HIGH" | "MEDIUM" | "LOW" | "NONE" | null;
+  summary: string | null;
+  citations: InterpretationCitation[];
+  model: string | null;
+  changesConsidered: number | null;
+  changesTotal: number | null;
+  detail: string | null;
+  createdAt: string;
+}
+
 export interface ComparisonCandidates {
   suggested: string | null;
   filings: ComparedFiling[];
@@ -82,6 +103,17 @@ export const comparisonsApi = {
       `/comparisons/${id}/sections/${encodeURIComponent(sectionKey)}/changes?includeNumericOnly=${includeNumericOnly}`,
     ),
 
+  /** The AI interpretation of a section's changes, or null if none was requested yet. */
+  interpretation: async (id: number, sectionKey: string) =>
+    (await apiFetch<Interpretation | undefined>(
+      `/comparisons/${id}/sections/${encodeURIComponent(sectionKey)}/interpretation`,
+    )) ?? null,
+
+  requestInterpretation: (id: number, sectionKey: string) =>
+    apiFetch<Interpretation>(`/comparisons/${id}/sections/${encodeURIComponent(sectionKey)}/interpretation`, {
+      method: "POST",
+    }),
+
   candidates: (accession: string) =>
     apiFetch<ComparisonCandidates>(`/filings/${encodeURIComponent(accession)}/comparison-candidates`),
 };
@@ -91,6 +123,7 @@ export const comparisonKeys = {
   changes: (id: number, sectionKey: string, includeNumericOnly: boolean) =>
     ["comparisons", id, "changes", sectionKey, includeNumericOnly] as const,
   candidates: (accession: string) => ["comparisons", "candidates", accession] as const,
+  interpretation: (id: number, sectionKey: string) => ["comparisons", id, "interpretation", sectionKey] as const,
 };
 
 /** Link to a block in a filing's document reader. */

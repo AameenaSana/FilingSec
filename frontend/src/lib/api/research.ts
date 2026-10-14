@@ -16,6 +16,7 @@ export interface FilingReadiness {
 }
 
 export interface Citation {
+  id: number;
   ordinal: number;
   filing: ResearchFiling;
   sectionKey: string;
@@ -54,6 +55,11 @@ export const researchApi = {
   create: (filings: string[], title?: string) =>
     apiFetch<Conversation>("/conversations", { method: "POST", body: JSON.stringify({ filings, title }) }),
   list: () => apiFetch<ConversationSummary[]>("/conversations"),
+  createCrossCompany: (ciks: string[], formType: string, fiscalYear: number | null, topic: string) =>
+    apiFetch<Conversation>("/conversations/cross-company", {
+      method: "POST",
+      body: JSON.stringify({ ciks, formType, fiscalYear, topic: topic || undefined }),
+    }),
   get: (id: number) => apiFetch<Conversation>(`/conversations/${id}`),
   rename: (id: number, title: string) =>
     apiFetch<void>(`/conversations/${id}`, { method: "PATCH", body: JSON.stringify({ title }) }),
