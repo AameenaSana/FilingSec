@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
+import { CompareLauncher } from "@/components/comparison/CompareLauncher";
 import { DocumentReader } from "@/components/documents/DocumentReader";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -97,6 +98,8 @@ export function FilingDetailView({ accession }: { accession: string }) {
           <DocumentReader accession={filing.accessionNumber} />
         </section>
       )}
+
+      <CompareLauncher accession={filing.accessionNumber} />
 
       <Metadata filing={filing} />
 

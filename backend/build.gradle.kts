@@ -34,6 +34,7 @@ dependencies {
 	implementation("com.bucket4j:bucket4j_jdk17-core:8.21.0")
 	implementation("com.github.ben-manes.caffeine:caffeine")
 	implementation("org.jsoup:jsoup:1.23.2")
+	implementation("io.github.java-diff-utils:java-diff-utils:4.17")
 	runtimeOnly("org.bouncycastle:bcprov-jdk18on:1.86")
 	runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 	runtimeOnly("org.postgresql:postgresql")

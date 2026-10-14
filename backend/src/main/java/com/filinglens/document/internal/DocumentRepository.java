@@ -9,13 +9,17 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
+import com.filinglens.document.BlockText;
+import com.filinglens.document.SectionText;
 import com.filinglens.document.internal.DocumentViews.BlockView;
 import com.filinglens.document.internal.DocumentViews.SectionView;
 import com.filinglens.document.internal.SectionDetector.DetectedSection;
@@ -170,6 +174,27 @@ class DocumentRepository {
 			.param("limit", limit)
 			.query(DocumentRepository::block)
 			.list();
+	}
+
+	/** All sections with their blocks, in document order. */
+	List<SectionText> readAll(long filingId) {
+		Map<String, List<BlockText>> blocksBySection = new LinkedHashMap<>();
+		Map<String, String> titles = new LinkedHashMap<>();
+		jdbc.sql("""
+				SELECT s.section_key, s.title, b.ordinal, b.block_ref, b.block_type, b.text, b.content_hash
+				FROM document_section s JOIN text_block b ON b.section_id = s.id
+				WHERE s.filing_id = :id
+				ORDER BY b.ordinal
+				""").param("id", filingId).query(rs -> {
+			String key = rs.getString("section_key");
+			titles.putIfAbsent(key, rs.getString("title"));
+			blocksBySection.computeIfAbsent(key, k -> new ArrayList<>())
+				.add(new BlockText(rs.getInt("ordinal"), rs.getString("block_ref"), rs.getString("block_type"),
+						rs.getString("text"), rs.getString("content_hash")));
+		});
+		List<SectionText> sections = new ArrayList<>();
+		blocksBySection.forEach((key, blocks) -> sections.add(new SectionText(key, titles.get(key), List.copyOf(blocks))));
+		return sections;
 	}
 
 	Optional<BlockView> blockByRef(long filingId, String ref) {

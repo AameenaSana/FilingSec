@@ -59,5 +59,5 @@ cd frontend && npm test && npm run lint && npm run typecheck
 ## Status
 
 Phases 0 (foundations), 1 (identity and accounts), 2 (companies, EDGAR client, watchlist) and
-3 (filing discovery, metadata and document fetching) and 4 (document processing and source
-viewer) are complete. See the phase plan in the architecture document.
+3 (filing discovery, metadata and document fetching) , 4 (document processing and source
+viewer) and 5 (filing comparison) are complete. See the phase plan in the architecture document.
