@@ -5,9 +5,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.filinglens.research.internal.AnswerModel.Answer;
-import com.filinglens.research.internal.AnswerModel.Cite;
-import com.filinglens.research.internal.AnswerModel.Segment;
+import com.filinglens.ai.AiModel.AiResponse;
+import com.filinglens.ai.AiModel.Cite;
+import com.filinglens.ai.AiModel.Segment;
 import com.filinglens.research.internal.IndexRepository.ChunkRow;
 
 /**
@@ -30,7 +30,7 @@ final class CitationMapper {
 	private CitationMapper() {
 	}
 
-	static List<MappedCitation> map(Answer answer, List<ChunkRow> passages) {
+	static List<MappedCitation> map(AiResponse answer, List<ChunkRow> passages) {
 		List<MappedCitation> citations = new ArrayList<>();
 		Map<String, Integer> markers = new LinkedHashMap<>();
 		int offset = 0;

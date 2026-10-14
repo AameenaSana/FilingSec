@@ -1,4 +1,4 @@
-package com.filinglens.research.internal;
+package com.filinglens.ai.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,11 +15,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.anthropic.client.okhttp.AnthropicOkHttpClient;
-import com.filinglens.research.internal.AnswerModel.Answer;
-import com.filinglens.research.internal.AnswerModel.AnswerRequest;
-import com.filinglens.research.internal.AnswerModel.Cite;
-import com.filinglens.research.internal.AnswerModel.Passage;
-import com.filinglens.research.internal.AnswerModel.Turn;
+import com.filinglens.ai.AiModel.AiRequest;
+import com.filinglens.ai.AiModel.AiResponse;
+import com.filinglens.ai.AiModel.Cite;
+import com.filinglens.ai.AiModel.Passage;
+import com.filinglens.ai.AiModel.Turn;
 import com.sun.net.httpserver.HttpServer;
 
 import tools.jackson.databind.JsonNode;
@@ -30,7 +30,7 @@ import tools.jackson.databind.json.JsonMapper;
  * Messages API streaming protocol: request shape (search results with citations,
  * fallbacks, effort) and parsing of streamed text and citations.
  */
-class ClaudeAnswerModelTest {
+class ClaudeAiModelTest {
 
 	static final String STREAM = """
 			event: message_start
@@ -71,7 +71,7 @@ class ClaudeAnswerModelTest {
 
 	final AtomicReference<String> betaHeader = new AtomicReference<>();
 
-	ClaudeAnswerModel model;
+	ClaudeAiModel model;
 
 	@BeforeEach
 	void setUp() throws IOException {
@@ -91,7 +91,7 @@ class ClaudeAnswerModelTest {
 			.apiKey("test-key")
 			.baseUrl("http://127.0.0.1:" + server.getAddress().getPort())
 			.build();
-		model = new ClaudeAnswerModel(new ResearchProperties.Llm("test-key", "claude-opus-5-5", 64000, "medium"), client);
+		model = new ClaudeAiModel(new AiProperties("test-key", "claude-opus-5-5", 64000, "medium", 1_000_000), client);
 	}
 
 	@AfterEach
@@ -102,7 +102,7 @@ class ClaudeAnswerModelTest {
 	@Test
 	void streamsTextAndMapsSearchResultCitations() {
 		List<String> streamed = new ArrayList<>();
-		Answer answer = model.answer(request(), streamed::add);
+		AiResponse answer = model.generate(request(), streamed::add);
 
 		assertThat(String.join("", streamed)).isEqualTo("Apple cites risks from generative AI features.");
 		assertThat(answer.text()).isEqualTo("Apple cites risks from generative AI features.");
@@ -116,7 +116,7 @@ class ClaudeAnswerModelTest {
 
 	@Test
 	void sendsPassagesAsCitableSearchResultsWithFallbacksEnabled() {
-		model.answer(request(), text -> {
+		model.generate(request(), text -> {
 		});
 
 		JsonNode body = JsonMapper.builder().build().readTree(requestBody.get());
@@ -142,8 +142,8 @@ class ClaudeAnswerModelTest {
 		assertThat(content.get(1).path("text").asString()).isEqualTo("What AI risks does Apple describe?");
 	}
 
-	static AnswerRequest request() {
-		return new AnswerRequest("Answer from the passages.",
+	static AiRequest request() {
+		return new AiRequest("Answer from the passages.",
 				List.of(new Turn(true, "Earlier question"), new Turn(false, "Earlier answer")),
 				List.of(new Passage("Apple Inc. 10-K (period ended 2025-09-27) — Risk Factors",
 						"0000320193-25-000079#10K.ITEM_1A/p2",

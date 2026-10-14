@@ -185,6 +185,14 @@ class ComparisonRepository {
 			.list();
 	}
 
+	Optional<Long> sectionId(long comparisonId, String sectionKey) {
+		return jdbc.sql("SELECT id FROM section_comparison WHERE comparison_id = :id AND section_key = :key")
+			.param("id", comparisonId)
+			.param("key", sectionKey)
+			.query(Long.class)
+			.optional();
+	}
+
 	/** @return empty if the section is not part of the comparison */
 	Optional<List<ChangeView>> changes(long id, String sectionKey, boolean includeNumericOnly) {
 		Optional<Long> sectionId = jdbc.sql("""

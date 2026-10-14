@@ -9,8 +9,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -48,6 +50,9 @@ class ComparisonApiTest {
 
 	@MockitoBean
 	ComparisonService comparisons;
+
+	@MockitoBean
+	InterpretationService interpretations;
 
 	static RequestPostProcessor user() {
 		return authentication(UsernamePasswordAuthenticationToken.authenticated(USER, null, USER.authorities()));
@@ -94,6 +99,24 @@ class ComparisonApiTest {
 			.andExpect(jsonPath("$[0].base.ordinal").value(40))
 			.andExpect(jsonPath("$[0].target.ref").value("10K.ITEM_1A/p3"))
 			.andExpect(jsonPath("$[0].diff[1].op").value("insert"));
+	}
+
+	@Test
+	void interpretationIsAbsentUntilRequested() throws Exception {
+		when(interpretations.get(9, "10K.ITEM_1A")).thenReturn(Optional.empty());
+
+		mvc.perform(get("/api/v1/comparisons/9/sections/10K.ITEM_1A/interpretation").with(user()))
+			.andExpect(status().isNoContent());
+	}
+
+	@Test
+	void requestingAnInterpretationIsAccepted() throws Exception {
+		when(interpretations.request(USER.id(), 9, "10K.ITEM_1A")).thenReturn(new InterpretationService.InterpretationView(
+				"PENDING", null, null, List.of(), null, null, null, null, Instant.parse("2026-01-01T00:00:00Z")));
+
+		mvc.perform(post("/api/v1/comparisons/9/sections/10K.ITEM_1A/interpretation").with(user()).with(csrf()))
+			.andExpect(status().isAccepted())
+			.andExpect(jsonPath("$.status").value("PENDING"));
 	}
 
 	@Test

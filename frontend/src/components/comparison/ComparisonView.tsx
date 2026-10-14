@@ -16,6 +16,7 @@ import {
   type TextChange,
 } from "@/lib/api/comparisons";
 import { sectionLabel } from "@/lib/api/documents";
+import { InterpretationPanel } from "./InterpretationPanel";
 import { formatDate } from "@/lib/api/filings";
 
 const POLL_MS = 3000;
@@ -138,6 +139,9 @@ function Results({ comparison }: { comparison: Comparison }) {
             <input type="checkbox" checked={includeNumericOnly} onChange={(e) => setIncludeNumericOnly(e.target.checked)} />
             Include changes that differ only in numbers ({stats.numericOnly})
           </label>
+          {selected && selected.added + selected.removed + selected.modified + selected.moved > 0 && (
+            <InterpretationPanel key={selected.key} comparisonId={comparison.id} sectionKey={selected.key} />
+          )}
           {selected && (
             <SectionChanges comparison={comparison} section={selected} includeNumericOnly={includeNumericOnly} />
           )}
@@ -209,8 +213,9 @@ const TYPE_STYLE: Record<TextChange["type"], { label: string; className: string 
 function ChangeCard({ change, comparison }: { change: TextChange; comparison: Comparison }) {
   const style = TYPE_STYLE[change.type];
   return (
-    <article className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+    <article id={`change-${change.ordinal}`} className="scroll-mt-4 rounded-lg border border-zinc-200 p-4 target:ring-2 target:ring-violet-400 dark:border-zinc-800">
       <header className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+        <span className="text-zinc-500">#{change.ordinal}</span>
         <span className={`rounded px-1.5 py-0.5 font-medium ${style.className}`}>{style.label}</span>
         {change.numericOnly && <span className="text-zinc-500">numbers only</span>}
         {change.type === "MOVED" && change.base && <span className="text-zinc-500">from {change.base.ref}</span>}

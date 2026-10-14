@@ -41,7 +41,8 @@ Status: approved 2026-10-14. This document is the reference for the implementati
 | `company` | CIK/ticker directory, company profile, search, watchlist | edgar, identity, platform |
 | `filing` | filing metadata, raw fetch | edgar, company, platform |
 | `document` | parse → sections → blocks → chunks; sanitized annotated source HTML | filing, platform |
-| `comparison` | section/paragraph alignment, word diffs, AI interpretations | document, research API |
+| `ai` | `AiModel` (Claude via the Anthropic Java SDK, citations, refusal fallbacks) and `AiUsage` (per-user token quota) | platform |
+| `comparison` | section/paragraph alignment, word diffs, AI interpretations | document, filing, ai |
 | `research` | embeddings, hybrid retrieval, Q&A, cross-company, citations, LLM usage | document, filing |
 | `workspace` | research sessions, findings | identity, research API, comparison API |
 | `monitoring` | polling watched companies, notifications, SSE, email | company, filing |
@@ -162,6 +163,21 @@ Every query on user-owned rows filters by `user_id` in the repository.
 - **Prompt injection:** filing text is treated as untrusted data; the model has no tools; citations are validated after generation.
 - **Secrets:** only in environment variables; `.env` is gitignored; gitleaks runs in CI; logs never contain secrets.
 - **Abuse and supply chain:** per-user LLM quotas; Dependabot.
+
+### AI interpretation and cross-company specifics (Phase 7)
+
+- **`ai` module:** owns the LLM (`AiModel`: grounded generation with `search_result` passages and citations), the configuration (`filinglens.ai.*`) and usage accounting (`AiUsage`). Both `research` and `comparison` depend on it, so the LLM is not reached through another feature module.
+- **Change interpretations:**
+  - Generated per comparison section on request, as the background job `comparison.interpret`.
+  - Each non-numeric change is sent as one passage: earlier and later text for MODIFIED, a single side otherwise. At most 60 changes or about 60K characters are sent, and the UI says when changes were left out.
+  - The response starts with `Significance: HIGH|MEDIUM|LOW|NONE`, which is parsed off. Citations map to change ordinals and are verified against the change texts.
+  - Stored in `change_interpretation`, separate from `text_change`, and shared per section and prompt version. The requester's quota is charged.
+  - The UI shows it in a distinct, labelled "AI interpretation" panel that links to the change cards it cites. The factual change list stays the primary record.
+- **Cross-company comparison:**
+  - `POST /api/v1/conversations/cross-company` takes 2–4 CIKs, a form and an optional fiscal year.
+  - It resolves each company's latest original filing of the form via `FilingCatalog.latestFiling`, refreshing the filing list from SEC if stale. The fiscal year is the calendar year in which the period of report ends.
+  - It creates a conversation over those filings.
+  - Conversations spanning several companies retrieve passages evenly per company (interleaved), and the system prompt asks for a per-company answer with each company cited to its own filing, followed by similarities and differences.
 
 ### Research / RAG specifics (Phase 6)
 
@@ -303,7 +319,7 @@ EDGAR access is a separate `edgar` module. Both `company` and `filing` need it, 
 | 4 | Document processing and source viewer | Done |
 | 5 | Comparison engine and diff UI | Done |
 | 6 | RAG Q&A with verified citations | Done |
-| 7 | AI change interpretation and cross-company research | |
+| 7 | AI change interpretation and cross-company research | Done |
 | 8 | Workspace (sessions, findings) | |
 | 9 | Monitoring and notifications | |
 | 10 | Dashboard | |

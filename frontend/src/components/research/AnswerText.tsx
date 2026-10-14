@@ -12,11 +12,13 @@ import type { Citation } from "@/lib/api/research";
 export function AnswerText({ messageId, content, citations }: { messageId: number; content: string; citations: Citation[] }) {
   const markersAt = new Map<number, number[]>();
   for (const citation of citations) {
-    const ordinals = markersAt.get(citation.answerEnd) ?? [];
+    // A marker belongs after the text it supports; clamp offsets that overrun the text.
+    const end = Math.min(citation.answerEnd, content.length);
+    const ordinals = markersAt.get(end) ?? [];
     if (!ordinals.includes(citation.ordinal)) {
       ordinals.push(citation.ordinal);
     }
-    markersAt.set(citation.answerEnd, ordinals);
+    markersAt.set(end, ordinals);
   }
   const boundaries = [...markersAt.keys()].filter((at) => at > 0 && at <= content.length).sort((a, b) => a - b);
 

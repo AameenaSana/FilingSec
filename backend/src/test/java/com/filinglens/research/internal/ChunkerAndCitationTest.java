@@ -9,9 +9,9 @@ import org.junit.jupiter.api.Test;
 
 import com.filinglens.document.BlockText;
 import com.filinglens.document.SectionText;
-import com.filinglens.research.internal.AnswerModel.Answer;
-import com.filinglens.research.internal.AnswerModel.Cite;
-import com.filinglens.research.internal.AnswerModel.Segment;
+import com.filinglens.ai.AiModel.AiResponse;
+import com.filinglens.ai.AiModel.Cite;
+import com.filinglens.ai.AiModel.Segment;
 import com.filinglens.research.internal.CitationMapper.MappedCitation;
 import com.filinglens.research.internal.IndexRepository.ChunkRow;
 
@@ -47,7 +47,7 @@ class ChunkerAndCitationTest {
 		ChunkRow chunk = new ChunkRow(5, 11, "10K.ITEM_1A", "Risk Factors", List.of(40, 41, 42),
 				List.of("10K.ITEM_1A/p1", "10K.ITEM_1A/p2", "10K.ITEM_1A/p3"),
 				List.of("Item 1A. Risk Factors", "Generative AI features may not be successful.", "Tariffs may rise."));
-		Answer answer = new Answer(List.of(new Segment("Apple warns that ", List.of()),
+		AiResponse answer = new AiResponse(List.of(new Segment("Apple warns that ", List.of()),
 				new Segment("AI features may fail", List.of(new Cite(0, 1, 2, "Generative AI features may not be successful."))),
 				new Segment(" and ", List.of()),
 				new Segment("tariffs may rise.", List.of(new Cite(0, 2, 3, "Tariffs may rise."),
