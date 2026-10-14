@@ -3,7 +3,8 @@
  * account management.
  * <p>
  * Public API: {@link com.filinglens.identity.UserPrincipal}, the authenticated
- * principal other modules receive via {@code @AuthenticationPrincipal}.
+ * principal other modules receive via {@code @AuthenticationPrincipal}, and
+ * {@link com.filinglens.identity.UserDirectory} for contact details.
  */
 @ApplicationModule(displayName = "Identity")
 package com.filinglens.identity;

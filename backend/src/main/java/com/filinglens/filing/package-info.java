@@ -5,7 +5,9 @@
  * <p>
  * Public API: {@link com.filinglens.filing.FilingCatalog} for lookups and the
  * {@link com.filinglens.filing.FilingFetched} event, published when a filing's
- * primary document has been stored.
+ * primary document has been stored, and the
+ * {@link com.filinglens.filing.FilingsDiscovered} event, published when new
+ * filings are found.
  */
 @ApplicationModule(displayName = "Filings")
 package com.filinglens.filing;

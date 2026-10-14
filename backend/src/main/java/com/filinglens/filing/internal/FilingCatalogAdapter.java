@@ -88,6 +88,11 @@ class FilingCatalogAdapter implements FilingCatalog {
 	}
 
 	@Override
+	public void refreshRecent(String cik) {
+		discovery.refresh(companies.resolve(cik));
+	}
+
+	@Override
 	public void requestDocuments(long filingId) {
 		findById(filingId).ifPresent(filing -> filings.requestFetch(filing.accessionNumber()));
 	}

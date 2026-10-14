@@ -45,7 +45,7 @@ Status: approved 2026-10-14. This document is the reference for the implementati
 | `comparison` | section/paragraph alignment, word diffs, AI interpretations | document, filing, ai |
 | `research` | embeddings, hybrid retrieval, Q&A, cross-company, citations, LLM usage | document, filing |
 | `workspace` | research sessions, findings, Markdown export | research (`CitationLookup`), comparison (`ChangeLookup`), document (`DocumentContent.block`), filing |
-| `monitoring` | polling watched companies, notifications, SSE, email | company, filing |
+| `monitoring` | polling watched companies, notifications, SSE, email, auto-compare | company (`Watchlists`), filing (`FilingsDiscovered`, `refreshRecent`), comparison (`ComparisonRequests`, `ComparisonCompleted`), identity (`UserDirectory`) |
 | `dashboard` | read-only aggregates | API packages of the others |
 
 Events: `FilingDiscovered` → `FilingFetched` → `FilingParsed` → `FilingIndexed`, plus `ComparisonCompleted` and `NewFilingForWatchedCompany`.
@@ -98,6 +98,7 @@ Compliance:
   - `finding` (references a citation, change or block, plus a quoted snapshot)
 - **monitoring:**
   - `company_poll_state`
+  - `monitored_comparison`
   - `notification`
   - `notification_preference`
 - **platform:**
@@ -119,7 +120,7 @@ Every query on user-owned rows filters by `user_id` in the repository.
 | Comparison | `POST /comparisons`, `GET /companies/{cik}/comparison-candidates`, `GET /comparisons/{id}`, `GET /comparisons/{id}/sections`, `GET /comparisons/{id}/sections/{key}/changes`, `POST /comparisons/{id}/sections/{key}/interpretation`, `GET /comparisons/{id}/interpretations` |
 | Research | `POST /conversations`, `GET /conversations`, `GET`/`PATCH`/`DELETE /conversations/{id}`, `POST /conversations/{id}/messages` (SSE), `GET /citations/{id}`, `POST /research/cross-company` |
 | Workspace | `GET`/`POST /research-sessions`, `GET`/`PATCH`/`DELETE /research-sessions/{id}`, `GET /research-sessions/{id}/export` (Markdown), `POST /findings`, `GET /findings?sessionId=&unfiled=&q=&tag=`, `PATCH`/`DELETE /findings/{id}` |
-| Notifications | `GET /notifications`, `POST /notifications/{id}/read`, `POST /notifications/read-all`, `GET /notifications/stream`, `GET`/`PUT /notification-preferences` |
+| Notifications | `GET /notifications?unreadOnly=&limit=` (with `unreadCount`), `POST /notifications/{id}/read`, `POST /notifications/read-all`, `GET /notifications/stream` (SSE), `GET`/`PUT /notification-preferences` |
 | Dashboard | `GET /dashboard` |
 | Admin | `GET /admin/jobs`, `POST /admin/jobs/{id}/retry` |
 
@@ -163,6 +164,19 @@ Every query on user-owned rows filters by `user_id` in the repository.
 - **Prompt injection:** filing text is treated as untrusted data; the model has no tools; citations are validated after generation.
 - **Secrets:** only in environment variables; `.env` is gitignored; gitleaks runs in CI; logs never contain secrets.
 - **Abuse and supply chain:** per-user LLM quotas; Dependabot.
+
+### Monitoring specifics (Phase 9)
+
+- **Polling:**
+  - Every minute a scheduler claims each watched company not polled within `filinglens.monitoring.poll-interval` (default 15 minutes) with an atomic upsert on `company_poll_state`, and queues a `monitoring.poll` job. A company is polled once per interval however many users watch it, even with several instances.
+  - The job calls `FilingCatalog.refreshRecent`, which goes through the shared EDGAR client and so keeps to SEC's rate limit and back-off. Failures are retried by the job queue; the last error is kept on the poll state.
+- **Discovery:** the filing module publishes `FilingsDiscovered` whenever a refresh (by the poller or by a user browsing) stores filings it did not know, except on a company's first sync, whose filings are history rather than news. At most the 10 most recent new filings are acted on at once.
+- **Notifications:**
+  - Each watcher who follows the filing's form and has notifications on for the company gets a `NEW_FILING` notification. A unique key (user, type, filing) makes repeats harmless.
+  - New filings are downloaded and processed automatically, so they are ready to read and question. A new original 10-K or 10-Q is compared with its suggested predecessor (previous annual report, or the same quarter a year earlier); when that comparison completes, watchers get a `COMPARISON_READY` notification linking to it.
+  - Delivery: stored in the app; pushed live over `GET /notifications/stream` (SSE with `unread` and `notification` events and a 25-second keep-alive, at most 5 connections per user); and emailed through a retried `monitoring.email` job unless the user turned email off in settings or has not verified their address. Pushes are sent after the transaction commits.
+  - Live pushes reach connections on the instance that handled the event. With several instances, other clients catch up on the next list refresh (the header refetches every 2 minutes).
+- **Configuration:** `MONITORING_ENABLED`, `MONITORING_POLL_INTERVAL`; tests disable the scheduler.
 
 ### Workspace specifics (Phase 8)
 
@@ -330,6 +344,6 @@ EDGAR access is a separate `edgar` module. Both `company` and `filing` need it, 
 | 6 | RAG Q&A with verified citations | Done |
 | 7 | AI change interpretation and cross-company research | Done |
 | 8 | Workspace (sessions, findings) | Done |
-| 9 | Monitoring and notifications | |
+| 9 | Monitoring and notifications | Done |
 | 10 | Dashboard | |
 | 11 | Hardening: E2E, RAG evaluation, performance, security review, deployment docs | |

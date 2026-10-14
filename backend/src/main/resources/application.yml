@@ -69,6 +69,13 @@ filinglens:
       cron: "0 0 6 * * *"
   filing:
     list-max-age: PT1H
+  monitoring:
+    # Polls SEC for new filings of watched companies (needs SEC_USER_AGENT).
+    enabled: ${MONITORING_ENABLED:true}
+    poll-interval: ${MONITORING_POLL_INTERVAL:PT15M}
+    check-interval: PT1M
+    auto-compare: true
+    max-filings-per-discovery: 10
   ai:
     # Never commit keys: set LLM_API_KEY (or ANTHROPIC_API_KEY) in the environment.
     api-key: ${LLM_API_KEY:${ANTHROPIC_API_KEY:}}

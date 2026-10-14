@@ -25,6 +25,13 @@ public interface FilingCatalog {
 	 */
 	Optional<FilingRef> latestFiling(String cik, String baseForm, Integer fiscalYear);
 
+	/**
+	 * Re-reads the company's recent filings from SEC now, publishing
+	 * {@link FilingsDiscovered} for any new ones.
+	 * @throws com.filinglens.edgar.EdgarUnavailableException if SEC is unavailable
+	 */
+	void refreshRecent(String cik);
+
 	/** Queues download of the filing's documents unless already fetched or in progress. */
 	void requestDocuments(long filingId);
 

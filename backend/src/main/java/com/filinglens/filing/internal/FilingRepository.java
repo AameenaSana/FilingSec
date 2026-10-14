@@ -8,6 +8,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -64,6 +66,27 @@ class FilingRepository {
 			}
 		});
 		return Arrays.stream(counts).flatMapToInt(Arrays::stream).map(c -> Math.max(c, 0)).sum();
+	}
+
+	/** The given accession numbers that are already stored. */
+	Set<String> knownAccessions(Collection<String> accessionNumbers) {
+		if (accessionNumbers.isEmpty()) {
+			return Set.of();
+		}
+		return new HashSet<>(jdbc.sql("SELECT accession_number FROM filing WHERE accession_number IN (:a)")
+			.param("a", accessionNumbers)
+			.query(String.class)
+			.list());
+	}
+
+	List<Long> idsOf(Collection<String> accessionNumbers) {
+		if (accessionNumbers.isEmpty()) {
+			return List.of();
+		}
+		return jdbc.sql("SELECT id FROM filing WHERE accession_number IN (:a) ORDER BY filing_date, id")
+			.param("a", accessionNumbers)
+			.query(Long.class)
+			.list();
 	}
 
 	record SyncState(Instant recentSyncedAt, Set<String> importedHistoryFiles) {
