@@ -236,7 +236,7 @@ class ConversationRepository {
 	List<MessageView> messages(long conversationId) {
 		Map<Long, List<CitationView>> citations = new HashMap<>();
 		jdbc.sql("""
-				SELECT ci.message_id, ci.ordinal, ci.section_key, ci.section_title, ci.block_refs, ci.first_block_ordinal,
+				SELECT ci.id AS citation_id, ci.message_id, ci.ordinal, ci.section_key, ci.section_title, ci.block_refs, ci.first_block_ordinal,
 				       ci.cited_text, ci.answer_start, ci.answer_end, ci.verified,
 				       f.id, f.accession_number, c.cik, c.name, f.form_type, f.report_date, f.filing_date
 				FROM citation ci
@@ -247,7 +247,7 @@ class ConversationRepository {
 				ORDER BY ci.message_id, ci.id
 				""").param("c", conversationId).query((rs, n) -> {
 			citations.computeIfAbsent(rs.getLong("message_id"), k -> new ArrayList<>())
-				.add(new CitationView(rs.getInt("ordinal"), filingInfo(rs), rs.getString("section_key"),
+				.add(new CitationView(rs.getLong("citation_id"), rs.getInt("ordinal"), filingInfo(rs), rs.getString("section_key"),
 						rs.getString("section_title"), strings(rs.getArray("block_refs")),
 						rs.getInt("first_block_ordinal"), rs.getString("cited_text"), rs.getInt("answer_start"),
 						rs.getInt("answer_end"), rs.getBoolean("verified")));

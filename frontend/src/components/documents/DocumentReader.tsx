@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { SaveFindingButton } from "@/components/workspace/SaveFindingButton";
 import { errorMessage } from "@/lib/api/client";
 import { documentKeys, documentsApi, sectionLabel, viewerUrl } from "@/lib/api/documents";
 
@@ -13,12 +14,14 @@ const POLL_MS = 2000;
 /**
  * The filing's source document in a sandboxed frame with section navigation.
  * `?block=N` in the page URL highlights block N once the document has loaded.
+ * Clicking a paragraph selects it so it can be saved as a finding.
  */
 export function DocumentReader({ accession }: { accession: string }) {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const frame = useRef<HTMLIFrameElement>(null);
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [selectedBlock, setSelectedBlock] = useState<number | null>(null);
 
   const { data: structure, error } = useQuery({
     queryKey: documentKeys.structure(accession),
@@ -44,9 +47,23 @@ export function DocumentReader({ accession }: { accession: string }) {
 
   const onFrameLoad = useCallback(() => {
     const requested = Number(searchParams.get("block"));
-    if (Number.isInteger(requested) && requested > 0) {
-      showBlock(requested);
+    if (Number.isInteger(requested) && requested > 0 && showBlock(requested)) {
+      setSelectedBlock(requested);
     }
+    // The frame runs no scripts of its own; this page listens for clicks on its blocks.
+    frame.current?.contentDocument?.addEventListener("click", (event) => {
+      const target = event.target as Element | null;
+      if (!target?.closest || target.closest("a")) {
+        return;
+      }
+      const block = target.closest("[data-fl-block]");
+      const ordinal = Number(block?.getAttribute("data-fl-block"));
+      if (block && Number.isInteger(ordinal) && ordinal > 0) {
+        block.ownerDocument.querySelectorAll("[data-fl-highlight]").forEach((el) => el.removeAttribute("data-fl-highlight"));
+        block.setAttribute("data-fl-highlight", "");
+        setSelectedBlock(ordinal);
+      }
+    });
   }, [searchParams, showBlock]);
 
   if (error) {
@@ -107,16 +124,32 @@ export function DocumentReader({ accession }: { accession: string }) {
           ))}
         </ol>
       </nav>
-      <iframe
-        ref={frame}
-        title="Filing document"
-        src={viewerUrl(accession)}
-        // No scripts may run in the filing; same-origin lets this page scroll to and highlight blocks.
-        sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-        referrerPolicy="no-referrer"
-        onLoad={onFrameLoad}
-        className="h-[75vh] w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-800"
-      />
+      <div className="flex min-w-0 flex-col gap-2">
+        <div className="flex min-h-6 flex-wrap items-center gap-3 text-xs text-zinc-600 dark:text-zinc-400">
+          {selectedBlock ? (
+            <>
+              <span>Highlighted passage #{selectedBlock}</span>
+              <SaveFindingButton
+                key={selectedBlock}
+                source={{ type: "PASSAGE", accessionNumber: accession, blockOrdinal: selectedBlock }}
+                label="Save passage as finding"
+              />
+            </>
+          ) : (
+            <span>Click a paragraph to select it for saving as a finding.</span>
+          )}
+        </div>
+        <iframe
+          ref={frame}
+          title="Filing document"
+          src={viewerUrl(accession)}
+          // No scripts may run in the filing; same-origin lets this page scroll to and highlight blocks.
+          sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+          referrerPolicy="no-referrer"
+          onLoad={onFrameLoad}
+          className="h-[75vh] w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-800"
+        />
+      </div>
     </div>
   );
 }

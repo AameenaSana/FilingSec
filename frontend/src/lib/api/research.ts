@@ -16,6 +16,7 @@ export interface FilingReadiness {
 }
 
 export interface Citation {
+  id: number;
   ordinal: number;
   filing: ResearchFiling;
   sectionKey: string;

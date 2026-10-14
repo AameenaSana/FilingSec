@@ -3,6 +3,7 @@ import { Fragment } from "react";
 import { sectionLabel } from "@/lib/api/documents";
 import { formatDate } from "@/lib/api/filings";
 import type { Citation } from "@/lib/api/research";
+import { SaveFindingButton } from "@/components/workspace/SaveFindingButton";
 
 /**
  * An answer with citation markers placed after the text each citation supports,
@@ -65,6 +66,7 @@ export function AnswerText({ messageId, content, citations }: { messageId: numbe
                   >
                     View in filing ({source.blockRefs.join(", ")})
                   </Link>
+                  <SaveFindingButton source={{ type: "CITATION", citationId: source.id }} />
                   {!source.verified && (
                     <span className="rounded bg-amber-100 px-1.5 py-0.5 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                       Quote not found verbatim in the source — check before relying on it

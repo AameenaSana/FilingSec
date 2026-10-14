@@ -19,6 +19,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import com.filinglens.document.BlockText;
+import com.filinglens.document.LocatedBlock;
 import com.filinglens.document.SectionText;
 import com.filinglens.document.internal.DocumentViews.BlockView;
 import com.filinglens.document.internal.DocumentViews.SectionView;
@@ -195,6 +196,18 @@ class DocumentRepository {
 		List<SectionText> sections = new ArrayList<>();
 		blocksBySection.forEach((key, blocks) -> sections.add(new SectionText(key, titles.get(key), List.copyOf(blocks))));
 		return sections;
+	}
+
+	Optional<LocatedBlock> locate(long filingId, int ordinal) {
+		return jdbc.sql("""
+				SELECT b.ordinal, b.block_ref, b.block_type, b.text, b.content_hash, s.section_key, s.title
+				FROM text_block b JOIN document_section s ON s.id = b.section_id
+				WHERE b.filing_id = :id AND b.ordinal = :ordinal
+				""").param("id", filingId).param("ordinal", ordinal).query((rs, n) -> new LocatedBlock(
+					new BlockText(rs.getInt("ordinal"), rs.getString("block_ref"), rs.getString("block_type"),
+							rs.getString("text"), rs.getString("content_hash")),
+					rs.getString("section_key"), rs.getString("title")))
+			.optional();
 	}
 
 	Optional<BlockView> blockByRef(long filingId, String ref) {

@@ -44,7 +44,7 @@ Status: approved 2026-10-14. This document is the reference for the implementati
 | `ai` | `AiModel` (Claude via the Anthropic Java SDK, citations, refusal fallbacks) and `AiUsage` (per-user token quota) | platform |
 | `comparison` | section/paragraph alignment, word diffs, AI interpretations | document, filing, ai |
 | `research` | embeddings, hybrid retrieval, Q&A, cross-company, citations, LLM usage | document, filing |
-| `workspace` | research sessions, findings | identity, research API, comparison API |
+| `workspace` | research sessions, findings, Markdown export | research (`CitationLookup`), comparison (`ChangeLookup`), document (`DocumentContent.block`), filing |
 | `monitoring` | polling watched companies, notifications, SSE, email | company, filing |
 | `dashboard` | read-only aggregates | API packages of the others |
 
@@ -118,7 +118,7 @@ Every query on user-owned rows filters by `user_id` in the repository.
 | Filings | `GET /filings/{acc}`, `GET /filings/{acc}/documents`, `GET /filings/{acc}/status`, `POST /filings/{acc}/process`, `GET /filings/{acc}/sections`, `GET /filings/{acc}/blocks`, `GET /filings/{acc}/blocks/{ref}`, `GET /filings/{acc}/source` |
 | Comparison | `POST /comparisons`, `GET /companies/{cik}/comparison-candidates`, `GET /comparisons/{id}`, `GET /comparisons/{id}/sections`, `GET /comparisons/{id}/sections/{key}/changes`, `POST /comparisons/{id}/sections/{key}/interpretation`, `GET /comparisons/{id}/interpretations` |
 | Research | `POST /conversations`, `GET /conversations`, `GET`/`PATCH`/`DELETE /conversations/{id}`, `POST /conversations/{id}/messages` (SSE), `GET /citations/{id}`, `POST /research/cross-company` |
-| Workspace | CRUD on `/research-sessions`, `/research-sessions/{id}/findings`; `GET /findings` |
+| Workspace | `GET`/`POST /research-sessions`, `GET`/`PATCH`/`DELETE /research-sessions/{id}`, `GET /research-sessions/{id}/export` (Markdown), `POST /findings`, `GET /findings?sessionId=&unfiled=&q=&tag=`, `PATCH`/`DELETE /findings/{id}` |
 | Notifications | `GET /notifications`, `POST /notifications/{id}/read`, `POST /notifications/read-all`, `GET /notifications/stream`, `GET`/`PUT /notification-preferences` |
 | Dashboard | `GET /dashboard` |
 | Admin | `GET /admin/jobs`, `POST /admin/jobs/{id}/retry` |
@@ -163,6 +163,15 @@ Every query on user-owned rows filters by `user_id` in the repository.
 - **Prompt injection:** filing text is treated as untrusted data; the model has no tools; citations are validated after generation.
 - **Secrets:** only in environment variables; `.env` is gitignored; gitleaks runs in CI; logs never contain secrets.
 - **Abuse and supply chain:** per-user LLM quotas; Dependabot.
+
+### Workspace specifics (Phase 8)
+
+- **Findings are references, resolved by the server:** the client sends only a source reference: a citation id, a comparison change (comparison id, section key, change ordinal) or a filing passage (accession, block ordinal). The server reads the quote and source details through `CitationLookup`, `ChangeLookup` and `DocumentContent.block` and stores a snapshot. Saved evidence is therefore always genuine filing text with a working link to its location, and a client cannot save invented quotes.
+- **Change findings:** a MODIFIED change keeps both the earlier and the later text with links to each. A REMOVED change quotes the earlier filing.
+- **Ownership:** every query is scoped by `user_id`. Citations resolve only within the user's own conversations, and findings can be filed only in the user's own sessions.
+- **Sessions:** deleting a session keeps its findings as unfiled (`ON DELETE SET NULL`). Notes are free text; tags are normalized (lower case, hyphenated, at most 10 per finding). Each user can keep at most 5,000 findings.
+- **Export:** `GET /research-sessions/{id}/export` returns Markdown, oldest finding first, with each quote, note, tags, a link to the SEC filing index and a link to the passage in FilingLens.
+- **UI:** "Save finding" on cited sources, change cards and a clicked passage in the filing reader; `/workspace` lists sessions and searchable, tag-filterable findings; `/workspace/sessions/{id}` edits, exports and deletes a session.
 
 ### AI interpretation and cross-company specifics (Phase 7)
 
@@ -320,7 +329,7 @@ EDGAR access is a separate `edgar` module. Both `company` and `filing` need it, 
 | 5 | Comparison engine and diff UI | Done |
 | 6 | RAG Q&A with verified citations | Done |
 | 7 | AI change interpretation and cross-company research | Done |
-| 8 | Workspace (sessions, findings) | |
+| 8 | Workspace (sessions, findings) | Done |
 | 9 | Monitoring and notifications | |
 | 10 | Dashboard | |
 | 11 | Hardening: E2E, RAG evaluation, performance, security review, deployment docs | |

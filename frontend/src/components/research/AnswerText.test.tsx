@@ -14,6 +14,7 @@ const filing = {
 
 function citation(extra: Partial<Citation>): Citation {
   return {
+    id: 1,
     ordinal: 1,
     filing,
     sectionKey: "10K.ITEM_1A",

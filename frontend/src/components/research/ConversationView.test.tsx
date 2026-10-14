@@ -51,6 +51,7 @@ describe("ConversationView", () => {
           createdAt: "",
           citations: [
             {
+              id: 1,
               ordinal: 1,
               filing,
               sectionKey: "10K.ITEM_1A",

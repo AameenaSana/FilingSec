@@ -26,13 +26,15 @@ final class ResearchViews {
 	}
 
 	/**
+	 * @param id stable identifier, e.g. for saving the citation as a finding
 	 * @param ordinal marker number in the answer ([1], [2], ...)
 	 * @param firstBlockOrdinal the viewer anchor of the first cited block
 	 * @param answerStart start of the answer text this citation supports
 	 * @param verified whether the cited text was found verbatim in the stored source
 	 */
-	record CitationView(int ordinal, FilingInfo filing, String sectionKey, String sectionTitle, List<String> blockRefs,
-			int firstBlockOrdinal, String citedText, int answerStart, int answerEnd, boolean verified) {
+	record CitationView(long id, int ordinal, FilingInfo filing, String sectionKey, String sectionTitle,
+			List<String> blockRefs, int firstBlockOrdinal, String citedText, int answerStart, int answerEnd,
+			boolean verified) {
 	}
 
 	/**
