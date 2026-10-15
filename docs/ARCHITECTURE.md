@@ -333,6 +333,11 @@ EDGAR access is a separate `edgar` module. Both `company` and `filing` need it, 
   - Login rotates the session id and the CSRF token.
   - Password change revokes all other sessions; password reset and account deletion revoke all sessions. Revocation uses Spring Session's principal-name index.
   - Unverified accounts cannot sign in.
+- **Google sign-in (Supabase Auth, optional):**
+  - The browser runs the Google flow with Supabase (PKCE; only a one-time code appears in the URL), then posts the Supabase access token once to `POST /api/v1/auth/supabase`. The Supabase session is discarded; from then on the user has an ordinary FilingLens session.
+  - The backend resolves the token with Supabase's `GET /auth/v1/user` (no signing secret needed; works with legacy and asymmetric JWT keys; signed-out sessions are rejected) and accepts only confirmed emails from allowed providers (`google`).
+  - Accounts are matched by `app_user.supabase_user_id`, then by email. A matching password account is linked; if its email was never verified, its password is replaced, so whoever registered the address without proving control loses access. An account already linked to a different Supabase user is never taken over.
+  - New accounts are active immediately with a random, unknown password; a password can be set through "Forgot password".
 
 ## 9. Testing
 

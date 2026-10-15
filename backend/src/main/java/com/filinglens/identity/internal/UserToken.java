@@ -12,6 +12,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 /** A single-use token sent by email. Only its SHA-256 hash is persisted. */
 @Entity
 @Table(name = "user_token")
@@ -34,6 +37,8 @@ class UserToken {
 	@Column(nullable = false, length = 30)
 	private Type type;
 
+	// A fixed-length CHAR column; without the JDBC type, schema validation expects VARCHAR.
+	@JdbcTypeCode(SqlTypes.CHAR)
 	@Column(name = "token_hash", nullable = false, unique = true, length = 64, columnDefinition = "char(64)")
 	private String tokenHash;
 

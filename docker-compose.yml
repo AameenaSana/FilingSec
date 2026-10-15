@@ -41,7 +41,11 @@ services:
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:3000}
       MAIL_FROM: ${MAIL_FROM:-FilingLens <no-reply@localhost>}
       LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-claude-opus-5-5}
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-voyage-4}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:-}
       MONITORING_ENABLED: ${MONITORING_ENABLED:-true}
       MONITORING_POLL_INTERVAL: ${MONITORING_POLL_INTERVAL:-PT15M}
       SPRING_MAIL_HOST: ${SMTP_HOST:-mailpit}
@@ -68,6 +72,8 @@ services:
       context: ./frontend
       args:
         BACKEND_URL: http://backend:8080
+        NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:-}
     profiles: ["app"]
     ports:
       - "127.0.0.1:3000:3000"

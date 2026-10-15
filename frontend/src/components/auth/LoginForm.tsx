@@ -10,6 +10,7 @@ import { authApi } from "@/lib/api/auth";
 import { ApiError, errorMessage } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { safeNextPath } from "@/lib/auth/safe-next";
+import { GoogleSignIn } from "./GoogleSignIn";
 import { ResendVerification } from "./ResendVerification";
 
 export function LoginForm() {
@@ -42,6 +43,7 @@ export function LoginForm() {
 
   return (
     <div className="flex flex-col gap-4">
+      <GoogleSignIn next={searchParams.get("next")} />
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
         {error && <Alert tone="error">{error}</Alert>}
         <TextField

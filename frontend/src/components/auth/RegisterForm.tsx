@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { authApi, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/api/auth";
 import { ApiError, errorMessage } from "@/lib/api/client";
+import { GoogleSignIn } from "./GoogleSignIn";
 import { validateNewPassword } from "./password";
 
 export function RegisterForm() {
@@ -56,6 +57,7 @@ export function RegisterForm() {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+      <GoogleSignIn />
       {error && <Alert tone="error">{error}</Alert>}
       <TextField
         label="Name"

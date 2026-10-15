@@ -35,6 +35,7 @@ Copy `.env.example` to `.env` and fill it in. **Never commit `.env` or put secre
 | `LLM_API_KEY` | no | Anthropic API key; without it question answering and AI interpretation are disabled |
 | `LLM_MODEL` | no (`claude-opus-5-5`) | Claude model |
 | `EMBEDDING_API_KEY` | no | Voyage AI key; without it retrieval is keyword-only |
+| `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | no | Google sign-in through Supabase Auth (public values). The frontend image needs them at build time (Compose passes them as build args). In Supabase, enable the Google provider and add `<APP_PUBLIC_URL>/auth/callback` to the redirect URLs |
 | `MONITORING_ENABLED`, `MONITORING_POLL_INTERVAL` | no (`true`, `PT15M`) | Polling of watched companies |
 | `STORAGE_ROOT` | no (`/data/blobs` in Compose) | Where original SEC documents are stored; must be persistent |
 
@@ -128,6 +129,15 @@ E2E_EXTERNAL_STUB=1 npm run e2e
 ```
 
 Use a fresh database: the stub only knows Apple (CIK 320193), and the company directory is loaded from it on first startup.
+
+### Backend integration tests without Docker
+
+Integration tests normally start PostgreSQL with Testcontainers. To run them against an existing PostgreSQL 17 server instead (with the `vector`, `pg_trgm` and `citext` extensions installed), point them at a dedicated database. The tests delete data, so never use a database you want to keep:
+
+```bash
+TEST_DB_URL=jdbc:postgresql://localhost:5432/filinglens_test TEST_DB_USERNAME=filinglens TEST_DB_PASSWORD=... \
+./gradlew test
+```
 
 ## 10. RAG evaluation
 

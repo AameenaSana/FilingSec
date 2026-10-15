@@ -8,16 +8,19 @@ const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8080";
 
 const isDev = process.env.NODE_ENV !== "production";
 
+// Google sign-in exchanges its one-time code with Supabase Auth from the browser.
+const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin : "";
+
 // Pages talk only to this origin (API calls, the event stream and the framed filing
-// viewer). Next.js needs inline scripts for hydration; development also needs eval
-// for fast refresh.
+// viewer), plus Supabase Auth when Google sign-in is configured. Next.js needs inline
+// scripts for hydration; development also needs eval for fast refresh.
 const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  `connect-src 'self'${isDev ? " ws:" : ""}`,
+  `connect-src 'self'${supabaseOrigin ? ` ${supabaseOrigin}` : ""}${isDev ? " ws:" : ""}`,
   "frame-src 'self'",
   "frame-ancestors 'none'",
   "object-src 'none'",

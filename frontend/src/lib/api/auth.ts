@@ -21,6 +21,10 @@ export const authApi = {
   login: (email: string, password: string) =>
     apiFetch<Account>("/auth/login", { method: "POST", body: json({ email, password }) }),
 
+  /** Exchanges a Supabase access token (e.g. after Google sign-in) for a FilingLens session. */
+  supabaseSignIn: (accessToken: string) =>
+    apiFetch<Account>("/auth/supabase", { method: "POST", body: json({ accessToken }) }),
+
   logout: () => apiFetch<void>("/auth/logout", { method: "POST" }),
 
   register: (email: string, password: string, displayName: string) =>

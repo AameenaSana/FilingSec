@@ -1,3 +1,9 @@
+# With TEST_DB_URL set, integration tests use that server instead of Testcontainers.
+spring:
+  datasource:
+    url: ${TEST_DB_URL:}
+    username: ${TEST_DB_USERNAME:filinglens}
+    password: ${TEST_DB_PASSWORD:}
 filinglens:
   sec:
     user-agent: "FilingLens test test@example.com"
