@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { SaveFindingButton } from "@/components/workspace/SaveFindingButton";
@@ -22,6 +22,7 @@ export function DocumentReader({ accession }: { accession: string }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [selectedBlock, setSelectedBlock] = useState<number | null>(null);
+  const wired = useRef(new WeakSet<Document>());
 
   const { data: structure, error } = useQuery({
     queryKey: documentKeys.structure(accession),
@@ -45,13 +46,23 @@ export function DocumentReader({ accession }: { accession: string }) {
     return true;
   }, []);
 
-  const onFrameLoad = useCallback(() => {
+  /**
+   * Highlights the requested block and listens for clicks, once per loaded document.
+   * Runs as soon as the document is parsed rather than on the frame's load event,
+   * which waits for every image in the filing.
+   */
+  const wireFrame = useCallback((loaded = false) => {
+    const doc = frame.current?.contentDocument;
+    if (!doc || wired.current.has(doc) || (!loaded && doc.readyState === "loading") || !doc.querySelector("[data-fl-block]")) {
+      return;
+    }
+    wired.current.add(doc);
     const requested = Number(searchParams.get("block"));
     if (Number.isInteger(requested) && requested > 0 && showBlock(requested)) {
       setSelectedBlock(requested);
     }
     // The frame runs no scripts of its own; this page listens for clicks on its blocks.
-    frame.current?.contentDocument?.addEventListener("click", (event) => {
+    doc.addEventListener("click", (event) => {
       const target = event.target as Element | null;
       if (!target?.closest || target.closest("a")) {
         return;
@@ -65,6 +76,16 @@ export function DocumentReader({ accession }: { accession: string }) {
       }
     });
   }, [searchParams, showBlock]);
+
+  // The document can be ready long before the frame's load event; check until it is wired.
+  const viewerShown = structure?.status === "PARSED";
+  useEffect(() => {
+    if (!viewerShown) {
+      return;
+    }
+    const timer = window.setInterval(() => wireFrame(), 150);
+    return () => window.clearInterval(timer);
+  }, [viewerShown, wireFrame]);
 
   if (error) {
     return <Alert tone="error">{errorMessage(error)}</Alert>;
@@ -146,7 +167,7 @@ export function DocumentReader({ accession }: { accession: string }) {
           // No scripts may run in the filing; same-origin lets this page scroll to and highlight blocks.
           sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
           referrerPolicy="no-referrer"
-          onLoad={onFrameLoad}
+          onLoad={() => wireFrame(true)}
           className="h-[75vh] w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-800"
         />
       </div>

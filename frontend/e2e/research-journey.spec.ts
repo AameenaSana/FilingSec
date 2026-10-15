@@ -25,7 +25,7 @@ test("a new user researches a company from search to saved findings", async ({ p
   await page.goto("/companies/0000320193");
   await page.locator(`a[href="/filings/${LATEST_10K}"]`).first().click();
   await expect(page).toHaveURL(new RegExp(`/filings/${LATEST_10K}`));
-  await expect(page.getByRole("heading", { name: "Document" })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("heading", { name: "Document", exact: true })).toBeVisible({ timeout: 60_000 });
   const sections = page.getByRole("navigation", { name: "Sections" });
   await expect(sections.getByRole("button", { name: /Risk Factors/ })).toBeVisible({ timeout: 60_000 });
 

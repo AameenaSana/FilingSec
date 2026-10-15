@@ -130,6 +130,15 @@ E2E_EXTERNAL_STUB=1 npm run e2e
 Use a fresh database: the stub only knows Apple (CIK 320193), and the company directory is loaded from it on first startup.
 
 ## 10. RAG evaluation
+### Backend integration tests without Docker
+
+Integration tests normally start PostgreSQL with Testcontainers. To run them against an existing PostgreSQL 17 server instead (with the `vector`, `pg_trgm` and `citext` extensions installed), point them at a dedicated database. The tests delete data, so never use a database you want to keep:
+
+```bash
+TEST_DB_URL=jdbc:postgresql://localhost:5432/filinglens_test TEST_DB_USERNAME=filinglens TEST_DB_PASSWORD=... \
+./gradlew test
+```
+
 
 `backend/src/test/resources/rag-eval/` holds an evaluation set: a fictional annual report and questions, each answered by one known passage.
 
