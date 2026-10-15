@@ -105,6 +105,11 @@ filinglens:
     lockout-duration: PT15M
     email-verification-ttl: PT24H
     password-reset-ttl: PT1H
+    # Sign-in through Supabase Auth (e.g. Google); off unless both values are set.
+    supabase:
+      url: ${SUPABASE_URL:}
+      publishable-key: ${SUPABASE_PUBLISHABLE_KEY:}
+      providers: google
   sec:
     user-agent: ${SEC_USER_AGENT}
     www-base-url: https://www.sec.gov

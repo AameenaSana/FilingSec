@@ -9,7 +9,12 @@ FROM node:22-alpine AS build
 WORKDIR /app
 # Rewrites to the backend are baked in at build time (standalone output).
 ARG BACKEND_URL=http://backend:8080
+# Google sign-in through Supabase (public values, inlined into the browser bundle).
+ARG NEXT_PUBLIC_SUPABASE_URL=
+ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 ENV BACKEND_URL=$BACKEND_URL \
+    NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY \
     NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

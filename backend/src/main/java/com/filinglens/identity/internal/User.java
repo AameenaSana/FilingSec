@@ -65,6 +65,9 @@ class User {
 	@Column(name = "password_changed_at", nullable = false)
 	private Instant passwordChangedAt;
 
+	@Column(name = "supabase_user_id", unique = true)
+	private UUID supabaseUserId;
+
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
@@ -89,6 +92,25 @@ class User {
 		user.createdAt = now;
 		user.updatedAt = now;
 		return user;
+	}
+
+	/**
+	 * An account created by signing in through Supabase. The identity provider has
+	 * confirmed the address, so the account is active immediately. The password hash
+	 * is of a random secret nobody knows; a password can be set with a reset link.
+	 */
+	static User registerExternal(String normalizedEmail, String unusablePasswordHash, String displayName,
+			UUID supabaseUserId, Instant now) {
+		User user = register(normalizedEmail, unusablePasswordHash, displayName, now);
+		user.supabaseUserId = supabaseUserId;
+		user.markEmailVerified(now);
+		return user;
+	}
+
+	/** Links a Supabase identity whose verified email matches this account. */
+	void linkSupabase(UUID id, Instant now) {
+		supabaseUserId = id;
+		updatedAt = now;
 	}
 
 	boolean isLocked(Instant now) {
@@ -167,6 +189,10 @@ class User {
 
 	Status status() {
 		return status;
+	}
+
+	UUID supabaseUserId() {
+		return supabaseUserId;
 	}
 
 	boolean emailVerified() {
