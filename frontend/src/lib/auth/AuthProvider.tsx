@@ -44,32 +44,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [applySession]);
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
-      state,
-      refresh,
-      setUser: (user) => {
-        if (lastUserId.current !== null && lastUserId.current !== user.id) {
-          queryClient.clear();
-        }
-        lastUserId.current = user.id;
-        setState({ status: "authenticated", user });
-      },
-      signOut: async () => {
-        try {
-          await authApi.logout();
-        } finally {
-          // Never show one user's cached data to the next.
-          queryClient.clear();
-          setState({ status: "anonymous", user: null });
-        }
-      },
-      clear: () => {
+  // Stable identities: callers list these in effect dependencies, and a new
+  // function on every state change would re-run those effects in a loop.
+  const setUser = useCallback(
+    (user: Account) => {
+      if (lastUserId.current !== null && lastUserId.current !== user.id) {
         queryClient.clear();
-        setState({ status: "anonymous", user: null });
-      },
-    }),
-    [state, refresh, queryClient],
+      }
+      lastUserId.current = user.id;
+      setState({ status: "authenticated", user });
+    },
+    [queryClient],
+  );
+
+  const signOut = useCallback(async () => {
+    try {
+      await authApi.logout();
+    } finally {
+      // Never show one user's cached data to the next.
+      queryClient.clear();
+      setState({ status: "anonymous", user: null });
+    }
+  }, [queryClient]);
+
+  const clear = useCallback(() => {
+    queryClient.clear();
+    setState({ status: "anonymous", user: null });
+  }, [queryClient]);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({ state, refresh, setUser, signOut, clear }),
+    [state, refresh, setUser, signOut, clear],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
