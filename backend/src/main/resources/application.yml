@@ -30,6 +30,18 @@ spring:
       enabled: true
   lifecycle:
     timeout-per-shutdown-phase: 30s
+  # Host and port come from the profile (or SPRING_MAIL_HOST/PORT). Providers such as
+  # Gmail need credentials and STARTTLS; Mailpit needs neither.
+  mail:
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      "[mail.smtp.starttls.enable]": ${SMTP_STARTTLS:false}
+      "[mail.smtp.starttls.required]": ${SMTP_STARTTLS:false}
+      # Milliseconds; without them an unresponsive server blocks the sender forever.
+      "[mail.smtp.connectiontimeout]": 10000
+      "[mail.smtp.timeout]": 10000
+      "[mail.smtp.writetimeout]": 10000
 
 server:
   port: 8080

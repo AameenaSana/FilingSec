@@ -32,6 +32,7 @@ Copy `.env.example` to `.env` and fill it in. **Never commit `.env` or put secre
 | `SEC_USER_AGENT` | yes | Declared User-Agent with a contact email, required by SEC's [access policy](https://www.sec.gov/os/accessing-edgar-data) |
 | `APP_PUBLIC_URL` | yes | Browser-facing origin, used for links in emails |
 | `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` | yes in production | Outgoing email (verification, password reset, notifications) |
+| `SMTP_STARTTLS` | no (`false`) | `true` for servers that require STARTTLS, e.g. Gmail (`smtp.gmail.com`, port 587, an app password, and `MAIL_FROM` set to the Gmail address) |
 | `LLM_API_KEY` | no | Anthropic API key; without it question answering and AI interpretation are disabled |
 | `LLM_MODEL` | no (`claude-opus-5-5`) | Claude model |
 | `EMBEDDING_API_KEY` | no | Voyage AI key; without it retrieval is keyword-only |
