@@ -35,7 +35,10 @@ import com.filinglens.comparison.internal.InterpretationService.InterpretationRe
 import com.filinglens.comparison.internal.InterpretationService.InterpretationView;
 import com.filinglens.comparison.internal.InterpretationService.ParsedInterpretation;
 import com.filinglens.platform.error.ConflictException;
+import com.filinglens.platform.jobs.Job;
 import com.filinglens.platform.jobs.JobQueue;
+
+import tools.jackson.databind.json.JsonMapper;
 
 class InterpretationServiceTest {
 
@@ -140,6 +143,20 @@ class InterpretationServiceTest {
 		service.request(user, 9, "10K.ITEM_1A");
 		verify(interpretations, never()).startPending(5, InterpretationService.PROMPT_VERSION, null);
 		verify(jobs).enqueueUnique(anyString(), anyMap(), anyString());
+	}
+
+	@Test
+	void permanentFailureDoesNotShowTheProviderError() {
+		InterpretationRepository interpretations = mock(InterpretationRepository.class);
+		var job = new InterpretationService.InterpretationJob(mock(ComparisonService.class),
+				mock(ComparisonRepository.class), interpretations, mock(AiModel.class), mock(AiUsage.class),
+				JsonMapper.builder().build());
+
+		job.onPermanentFailure(new Job(1, InterpretationService.InterpretationJob.TYPE, "{\"interpretationId\":77}", 5, 5),
+				new IllegalStateException("400: {\"error\":{\"message\":\"Your credit balance is too low\"}}"));
+
+		verify(interpretations).finish(77, "FAILED", null, null, List.of(), null, null, null, 0, 0,
+				"The interpretation could not be generated. Please try again later.");
 	}
 
 	static ComparisonView view(Status status, FilingInfo filing) {
