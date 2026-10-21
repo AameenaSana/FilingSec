@@ -27,6 +27,7 @@ import com.filinglens.ai.AiModel.Cite;
 import com.filinglens.ai.AiModel.Passage;
 import com.filinglens.ai.AiModel.Segment;
 import com.filinglens.ai.AiNotConfiguredException;
+import com.filinglens.ai.AiRequestRejectedException;
 import com.filinglens.ai.AiUsage;
 import com.filinglens.comparison.internal.ComparisonViews.ChangeView;
 import com.filinglens.comparison.internal.ComparisonViews.ComparisonView;
@@ -224,6 +225,8 @@ class InterpretationService {
 
 		static final String FAILURE_DETAIL = "The interpretation could not be generated. Please try again later.";
 
+		static final String UNAVAILABLE_DETAIL = "AI interpretations are unavailable right now. Please try again later.";
+
 		private static final Logger log = LoggerFactory.getLogger(InterpretationJob.class);
 
 		private final ComparisonService comparisons;
@@ -251,6 +254,17 @@ class InterpretationService {
 		@Override
 		public String type() {
 			return TYPE;
+		}
+
+		/** The model call can take minutes; it should not hold a database connection meanwhile. */
+		@Override
+		public boolean transactional() {
+			return false;
+		}
+
+		@Override
+		public boolean isPermanent(Throwable cause) {
+			return cause instanceof AiRequestRejectedException;
 		}
 
 		@Override
@@ -307,7 +321,8 @@ class InterpretationService {
 		@Override
 		public void onPermanentFailure(Job job, Throwable cause) {
 			interpretations.finish(json.readTree(job.payload()).path("interpretationId").asLong(), "FAILED", null, null,
-					List.of(), null, null, null, 0, 0, FAILURE_DETAIL);
+					List.of(), null, null, null, 0, 0,
+					cause instanceof AiRequestRejectedException ? UNAVAILABLE_DETAIL : FAILURE_DETAIL);
 		}
 
 		private static String period(ComparisonViews.FilingInfo filing) {

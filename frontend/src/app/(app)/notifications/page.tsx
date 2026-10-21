@@ -3,6 +3,9 @@ import { NotificationsView } from "@/components/notifications/NotificationsView"
 
 export const metadata: Metadata = { title: "Notifications · FilingLens" };
 
+// Rendered only after sign-in is confirmed in the browser; see (app)/layout.tsx.
+export const instant = false;
+
 export default function NotificationsPage() {
   return (
     <div className="flex max-w-3xl flex-col gap-6">

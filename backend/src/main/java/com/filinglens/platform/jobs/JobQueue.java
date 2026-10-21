@@ -44,6 +44,11 @@ public class JobQueue {
 		return insert(type, payload, dedupeKey, Duration.ZERO);
 	}
 
+	/** Like {@link #enqueueUnique(String, Object, String)}, but the job runs no earlier than {@code delay} from now. */
+	public Optional<Long> enqueueUnique(String type, Object payload, String dedupeKey, Duration delay) {
+		return insert(type, payload, dedupeKey, delay);
+	}
+
 	private Optional<Long> insert(String type, Object payload, String dedupeKey, Duration delay) {
 		return jdbc.sql("""
 				INSERT INTO job (type, payload, dedupe_key, max_attempts, run_after)
@@ -100,7 +105,7 @@ public class JobQueue {
 		jdbc.sql("""
 				UPDATE job
 				SET status = :status, locked_by = NULL, locked_at = NULL, last_error = :error,
-				    run_after = now() + make_interval(secs => :backoffSeconds),
+				    run_after = CASE WHEN :exhausted THEN run_after ELSE now() + make_interval(secs => :backoffSeconds) END,
 				    finished_at = CASE WHEN :exhausted THEN now() END, updated_at = now()
 				WHERE id = :id
 				""")

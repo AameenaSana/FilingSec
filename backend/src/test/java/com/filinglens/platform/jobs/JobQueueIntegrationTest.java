@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -91,6 +93,75 @@ class JobQueueIntegrationTest {
 
 		assertThat(status(id)).isEqualTo("FAILED");
 		assertThat(hookCalls).hasValue(1);
+	}
+
+	@Test
+	void failureTheHandlerCallsPermanentIsNotRetried() {
+		long id = queue.enqueue("test.rejected", Map.of());
+		AtomicInteger hookCalls = new AtomicInteger();
+		JobHandler handler = new JobHandler() {
+			@Override
+			public String type() {
+				return "test.rejected";
+			}
+
+			@Override
+			public void handle(Job job) {
+				throw new UnsupportedOperationException("rejected by provider");
+			}
+
+			@Override
+			public boolean isPermanent(Throwable cause) {
+				return cause instanceof UnsupportedOperationException;
+			}
+
+			@Override
+			public void onPermanentFailure(Job job, Throwable cause) {
+				hookCalls.incrementAndGet();
+			}
+		};
+
+		worker(handler).poll();
+
+		assertThat(status(id)).isEqualTo("FAILED");
+		assertThat(hookCalls).hasValue(1);
+		assertThat(jdbc.sql("SELECT attempts FROM job WHERE id = :id").param("id", id).query(Integer.class).single())
+			.isEqualTo(1);
+		assertThat(jdbc.sql("SELECT run_after <= now() FROM job WHERE id = :id").param("id", id).query(Boolean.class).single())
+			.as("a finished job is not scheduled again")
+			.isTrue();
+	}
+
+	@Test
+	void jobsClaimedTogetherRunConcurrently() {
+		// Each job waits for the other to start, which only succeeds if they run at the same time.
+		CountDownLatch bothStarted = new CountDownLatch(2);
+		long first = queue.enqueue("test.together", Map.of());
+		long second = queue.enqueue("test.together", Map.of());
+		JobHandler handler = new JobHandler() {
+			@Override
+			public String type() {
+				return "test.together";
+			}
+
+			@Override
+			public boolean transactional() {
+				return false;
+			}
+
+			@Override
+			public void handle(Job job) throws InterruptedException {
+				bothStarted.countDown();
+				if (!bothStarted.await(10, TimeUnit.SECONDS)) {
+					throw new IllegalStateException("jobs ran one after the other");
+				}
+			}
+		};
+
+		worker(handler).poll();
+
+		assertThat(status(first)).isEqualTo("SUCCEEDED");
+		assertThat(status(second)).isEqualTo("SUCCEEDED");
 	}
 
 	@Test

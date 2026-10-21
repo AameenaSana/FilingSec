@@ -41,6 +41,9 @@ class WorkspaceService {
 
 	static final int MAX_TAGS = 10;
 
+	/** Characters that start Markdown formatting, links or HTML. */
+	private static final String MARKDOWN_SPECIAL = "\\`*_[]<>#|~";
+
 	private final WorkspaceRepository workspace;
 
 	private final CitationLookup citations;
@@ -121,6 +124,11 @@ class WorkspaceService {
 					"You can keep at most %d findings".formatted(MAX_FINDINGS_PER_USER));
 		}
 		FindingSource source = resolve(userId, reference);
+		if (workspace.hasDuplicate(userId, sessionId, source)) {
+			throw new ConflictException("already-saved", sessionId == null
+					? "You have already saved this as an unfiled finding."
+					: "You have already saved this to that session.");
+		}
 		long id = workspace.insertFinding(userId, sessionId, source, blankToNull(note), normalizeTags(tags),
 				clock.instant());
 		if (sessionId != null) {
@@ -133,11 +141,33 @@ class WorkspaceService {
 		return workspace.findings(userId, sessionId, unfiledOnly, text, tag);
 	}
 
-	FindingView updateFinding(UUID userId, long id, Long sessionId, String note, List<String> tags) {
-		if (sessionId != null) {
-			sessionRow(userId, sessionId);
+	/**
+	 * Changes to a finding. A field whose {@code *Set} flag is false is left as it
+	 * is; one that is set replaces the current value (null clears it).
+	 */
+	record FindingChanges(boolean sessionSet, Long sessionId, boolean noteSet, String note, boolean tagsSet,
+			List<String> tags) {
+
+		static FindingChanges all(Long sessionId, String note, List<String> tags) {
+			return new FindingChanges(true, sessionId, true, note, true, tags);
 		}
-		if (!workspace.updateFinding(userId, id, sessionId, blankToNull(note), normalizeTags(tags), clock.instant())) {
+
+	}
+
+	/** Replaces the finding's session, note and tags. */
+	FindingView updateFinding(UUID userId, long id, Long sessionId, String note, List<String> tags) {
+		return updateFinding(userId, id, FindingChanges.all(sessionId, note, tags));
+	}
+
+	FindingView updateFinding(UUID userId, long id, FindingChanges changes) {
+		if (changes.sessionSet() && changes.sessionId() != null) {
+			sessionRow(userId, changes.sessionId());
+		}
+		FindingView current = workspace.finding(userId, id).orElseThrow(() -> new NotFoundException("Finding", id));
+		Long sessionId = changes.sessionSet() ? changes.sessionId() : current.sessionId();
+		String note = changes.noteSet() ? blankToNull(changes.note()) : current.note();
+		List<String> tags = changes.tagsSet() ? normalizeTags(changes.tags()) : current.tags();
+		if (!workspace.updateFinding(userId, id, sessionId, note, tags, clock.instant())) {
 			throw new NotFoundException("Finding", id);
 		}
 		return workspace.finding(userId, id).orElseThrow();
@@ -152,9 +182,9 @@ class WorkspaceService {
 	/** The session as Markdown: each finding's quote, note, tags and links to the source. */
 	String exportMarkdown(UUID userId, long sessionId) {
 		SessionView session = session(userId, sessionId);
-		StringBuilder md = new StringBuilder("# ").append(session.title()).append("\n\n");
+		StringBuilder md = new StringBuilder("# ").append(escapeMarkdown(session.title())).append("\n\n");
 		if (session.description() != null) {
-			md.append(session.description()).append("\n\n");
+			md.append(escapeMarkdown(session.description())).append("\n\n");
 		}
 		md.append("_Exported from FilingLens. Quotes are verbatim from SEC filings._\n");
 		int n = 1;
@@ -174,10 +204,10 @@ class WorkspaceService {
 			}
 			md.append(quote(f.quotedText())).append('\n');
 			if (f.note() != null) {
-				md.append("**Note:** ").append(f.note()).append("\n\n");
+				md.append("**Note:** ").append(escapeMarkdown(f.note())).append("\n\n");
 			}
 			if (!f.tags().isEmpty()) {
-				md.append("**Tags:** ").append(String.join(", ", f.tags())).append("\n\n");
+				md.append("**Tags:** ").append(escapeMarkdown(String.join(", ", f.tags()))).append("\n\n");
 			}
 			md.append("Source: [SEC filing](").append(EdgarUrls.filingIndexUrl(f.filing().cik(), f.filing().accessionNumber()))
 				.append(") · [Passage in FilingLens](").append(publicUrl).append("/filings/")
@@ -245,6 +275,30 @@ class WorkspaceService {
 			throw new InvalidRequestException("too-many-tags", "Use at most %d tags".formatted(MAX_TAGS));
 		}
 		return List.copyOf(normalized);
+	}
+
+	/**
+	 * Escapes user-written text so it renders literally: it cannot add headings,
+	 * links (such as {@code javascript:} URLs), HTML or other formatting to the export.
+	 * Line breaks are kept as Markdown hard breaks.
+	 */
+	static String escapeMarkdown(String text) {
+		StringBuilder escaped = new StringBuilder(text.length() + 16);
+		String[] lines = text.strip().split("\\R", -1);
+		for (int i = 0; i < lines.length; i++) {
+			if (i > 0) {
+				escaped.append("  \n");
+			}
+			String line = lines[i];
+			for (int c = 0; c < line.length(); c++) {
+				char ch = line.charAt(c);
+				if (MARKDOWN_SPECIAL.indexOf(ch) >= 0) {
+					escaped.append('\\');
+				}
+				escaped.append(ch);
+			}
+		}
+		return escaped.toString();
 	}
 
 	private static String quote(String text) {

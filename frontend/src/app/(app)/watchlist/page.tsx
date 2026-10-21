@@ -3,6 +3,9 @@ import { WatchlistView } from "@/components/companies/WatchlistView";
 
 export const metadata: Metadata = { title: "Watchlist · FilingLens" };
 
+// Rendered only after sign-in is confirmed in the browser; see (app)/layout.tsx.
+export const instant = false;
+
 export default function WatchlistPage() {
   return (
     <div className="flex max-w-4xl flex-col gap-6">

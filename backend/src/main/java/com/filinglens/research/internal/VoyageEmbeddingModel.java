@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.stereotype.Component;
 
@@ -18,18 +19,29 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Voyage AI embeddings ({@code POST /v1/embeddings}). Documents and queries are
  * embedded with their respective {@code input_type}, which Voyage uses to optimize
- * retrieval. Retries rate limiting and server errors with backoff.
+ * retrieval. Document requests are paced by the configured request interval and
+ * retry rate limiting and server errors with backoff, honoring {@code Retry-After}.
+ * Query requests are not retried: a question should fall back to keyword search
+ * rather than wait.
  */
 @Component
 class VoyageEmbeddingModel implements EmbeddingModel {
 
-	private static final int MAX_ATTEMPTS = 4;
+	private static final int DOCUMENT_ATTEMPTS = 5;
+
+	private static final int QUERY_ATTEMPTS = 1;
+
+	/** Longest wait honored from a {@code Retry-After} header. */
+	private static final Duration MAX_RETRY_AFTER = Duration.ofSeconds(60);
 
 	private final ResearchProperties.Embeddings settings;
 
 	private final JsonMapper json;
 
 	private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+
+	/** Earliest time the next document request may be sent; shared by all callers. */
+	private long nextDocumentRequestNanos = System.nanoTime();
 
 	VoyageEmbeddingModel(ResearchProperties properties, JsonMapper json) {
 		this.settings = properties.embeddings();
@@ -50,17 +62,18 @@ class VoyageEmbeddingModel implements EmbeddingModel {
 	public List<float[]> embedDocuments(List<String> texts) {
 		List<float[]> vectors = new ArrayList<>(texts.size());
 		for (int from = 0; from < texts.size(); from += settings.batchSize()) {
-			vectors.addAll(embed(texts.subList(from, Math.min(texts.size(), from + settings.batchSize())), "document"));
+			vectors.addAll(embed(texts.subList(from, Math.min(texts.size(), from + settings.batchSize())), "document",
+					DOCUMENT_ATTEMPTS));
 		}
 		return vectors;
 	}
 
 	@Override
 	public float[] embedQuery(String text) {
-		return embed(List.of(text), "query").getFirst();
+		return embed(List.of(text), "query", QUERY_ATTEMPTS).getFirst();
 	}
 
-	private List<float[]> embed(List<String> inputs, String inputType) {
+	private List<float[]> embed(List<String> inputs, String inputType, int maxAttempts) {
 		if (!available()) {
 			throw new IllegalStateException("No embedding API key is configured");
 		}
@@ -76,18 +89,23 @@ class VoyageEmbeddingModel implements EmbeddingModel {
 			.POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)))
 			.build();
 		for (int attempt = 1;; attempt++) {
+			if ("document".equals(inputType)) {
+				awaitDocumentSlot();
+			}
+			Duration wait = Duration.ofSeconds(1L << attempt);
 			try {
 				HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
 				if (response.statusCode() == 200) {
 					return parse(response.body(), inputs.size());
 				}
 				boolean retryable = response.statusCode() == 429 || response.statusCode() >= 500;
-				if (!retryable || attempt >= MAX_ATTEMPTS) {
+				if (!retryable || attempt >= maxAttempts) {
 					throw new IllegalStateException("Embedding request failed with status " + response.statusCode());
 				}
+				wait = retryAfter(response).orElse(wait);
 			}
 			catch (IOException ex) {
-				if (attempt >= MAX_ATTEMPTS) {
+				if (attempt >= maxAttempts) {
 					throw new IllegalStateException("Embedding request failed: " + ex.getMessage(), ex);
 				}
 			}
@@ -95,8 +113,36 @@ class VoyageEmbeddingModel implements EmbeddingModel {
 				Thread.currentThread().interrupt();
 				throw new IllegalStateException("Interrupted while embedding", ex);
 			}
-			sleep(Duration.ofSeconds(1L << attempt));
+			sleep(wait);
 		}
+	}
+
+	/** Waits until the request interval since the previous document request has passed. */
+	private void awaitDocumentSlot() {
+		long waitNanos;
+		synchronized (this) {
+			long now = System.nanoTime();
+			long slot = Math.max(now, nextDocumentRequestNanos);
+			nextDocumentRequestNanos = slot + settings.requestInterval().toNanos();
+			waitNanos = slot - now;
+		}
+		if (waitNanos > 0) {
+			sleep(Duration.ofNanos(waitNanos));
+		}
+	}
+
+	/** The server's requested wait in seconds, capped; absent if missing or not a number of seconds. */
+	static Optional<Duration> retryAfter(HttpResponse<?> response) {
+		return response.headers().firstValue("Retry-After").flatMap(value -> {
+			try {
+				long seconds = Long.parseLong(value.strip());
+				Duration wait = Duration.ofSeconds(Math.max(1, seconds));
+				return Optional.of(wait.compareTo(MAX_RETRY_AFTER) > 0 ? MAX_RETRY_AFTER : wait);
+			}
+			catch (NumberFormatException ex) {
+				return Optional.empty();
+			}
+		});
 	}
 
 	private List<float[]> parse(String body, int expected) {

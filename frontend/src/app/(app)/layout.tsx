@@ -2,6 +2,11 @@ import { Suspense, type ReactNode } from "react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { RequireAuth } from "@/components/layout/RequireAuth";
 
+// Pages here render only once the browser has confirmed the session (RequireAuth), so
+// they cannot be part of a prerendered shell. Each page therefore sets
+// `instant = false`; otherwise instant-navigation validation reports it as dropped.
+// The backend still authorizes every request.
+
 const loading = (
   <p role="status" className="p-8 text-sm text-zinc-500">
     Loading…

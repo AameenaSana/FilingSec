@@ -76,6 +76,31 @@ class ResearchIntegrationTest {
 	}
 
 	@Test
+	void keywordOnlyIndexCanBeEmbeddedLater() {
+		var chunks = Chunker.chunk(List.of(ChunkerAndCitationTest.section("10K.ITEM_1A", "AI features may not be successful.")));
+		index.startIndex(filingId, 1, NOW);
+		index.replaceChunks(filingId, chunks, null, "voyage-4", "Semantic search unavailable: 429", NOW);
+
+		var state = index.state(filingId).orElseThrow();
+		assertThat(state.status()).isEqualTo("INDEXED");
+		assertThat(state.embedded()).isFalse();
+		assertThat(index.textSearch(List.of(filingId), "AI features", 5)).as("keyword search works meanwhile").hasSize(1);
+		var pending = index.unembeddedChunks(filingId);
+		assertThat(pending).hasSize(1);
+		assertThat(pending.getFirst().text()).contains("AI features");
+
+		float[] vector = new float[1024];
+		vector[0] = 1;
+		index.storeEmbeddings(filingId, List.of(pending.getFirst().id()), List.of(vector), "voyage-4", NOW.plusSeconds(60));
+
+		state = index.state(filingId).orElseThrow();
+		assertThat(state.embedded()).isTrue();
+		assertThat(state.detail()).isNull();
+		assertThat(index.unembeddedChunks(filingId)).isEmpty();
+		assertThat(index.vectorSearch(List.of(filingId), vector, 5)).hasSize(1);
+	}
+
+	@Test
 	void conversationsAreIsolatedAndStoreCitations() {
 		var chunks = Chunker.chunk(List.of(ChunkerAndCitationTest.section("10K.ITEM_1A", "AI features may not be successful.")));
 		index.startIndex(filingId, 1, NOW);

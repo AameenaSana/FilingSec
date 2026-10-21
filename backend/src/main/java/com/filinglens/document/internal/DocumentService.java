@@ -16,6 +16,7 @@ import com.filinglens.document.internal.DocumentRepository.ParseState;
 import com.filinglens.document.internal.DocumentViews.BlockView;
 import com.filinglens.document.internal.DocumentViews.DocumentStructure;
 import com.filinglens.document.internal.DocumentViews.ParseStatus;
+import com.filinglens.document.internal.DocumentViews.SectionView;
 import com.filinglens.filing.FilingCatalog;
 import com.filinglens.filing.FilingFetched;
 import com.filinglens.filing.FilingRef;
@@ -84,8 +85,16 @@ class DocumentService {
 		return structure(accession);
 	}
 
+	/** @throws NotFoundException if the document is parsed but has no section {@code sectionKey} */
 	List<BlockView> blocks(String accession, String sectionKey, int fromOrdinal, int limit) {
-		return documents.blocks(filing(accession).id(), sectionKey, fromOrdinal, limit);
+		long filingId = filing(accession).id();
+		if (sectionKey != null) {
+			List<SectionView> sections = documents.sections(filingId);
+			if (!sections.isEmpty() && sections.stream().noneMatch(s -> s.key().equals(sectionKey))) {
+				throw new NotFoundException("Section", sectionKey);
+			}
+		}
+		return documents.blocks(filingId, sectionKey, fromOrdinal, limit);
 	}
 
 	BlockView block(String accession, String ref) {

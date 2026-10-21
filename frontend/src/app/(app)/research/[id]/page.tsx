@@ -5,6 +5,9 @@ import { ConversationView } from "@/components/research/ConversationView";
 
 export const metadata: Metadata = { title: "Research · FilingLens" };
 
+// Rendered only after sign-in is confirmed in the browser; see (app)/layout.tsx.
+export const instant = false;
+
 export default function ConversationPage({ params, searchParams }: PageProps<"/research/[id]">) {
   return (
     <div className="max-w-4xl">

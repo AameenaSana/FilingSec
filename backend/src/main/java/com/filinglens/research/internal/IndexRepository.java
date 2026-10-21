@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.filinglens.document.BlockText;
 
@@ -31,7 +32,12 @@ class IndexRepository {
 		this.jdbc = jdbc;
 	}
 
-	record IndexState(String status, boolean embedded, Integer chunkCount, Integer parserVersion, String detail) {
+	record IndexState(String status, boolean embedded, Integer chunkCount, Integer parserVersion, String detail,
+			Instant updatedAt) {
+	}
+
+	/** A stored chunk still waiting for its embedding. */
+	record UnembeddedChunk(long id, String sectionTitle, String text) {
 	}
 
 	/** A stored chunk with its blocks, as given to the model. */
@@ -41,12 +47,12 @@ class IndexRepository {
 
 	Optional<IndexState> state(long filingId) {
 		return jdbc.sql("""
-				SELECT status, embedded, chunk_count, parser_version, detail FROM filing_index WHERE filing_id = :id
+				SELECT status, embedded, chunk_count, parser_version, detail, updated_at FROM filing_index WHERE filing_id = :id
 				""")
 			.param("id", filingId)
 			.query((rs, n) -> new IndexState(rs.getString("status"), rs.getBoolean("embedded"),
 					rs.getObject("chunk_count", Integer.class), rs.getObject("parser_version", Integer.class),
-					rs.getString("detail")))
+					rs.getString("detail"), rs.getTimestamp("updated_at").toInstant()))
 			.optional();
 	}
 
@@ -67,8 +73,20 @@ class IndexRepository {
 	}
 
 	/** Replaces the filing's chunks. {@code embeddings} is null when no embedding provider is configured. */
+	@Transactional
 	void replaceChunks(long filingId, List<Chunker.Chunk> chunks, List<float[]> embeddings, String embeddingModel,
 			Instant now) {
+		replaceChunks(filingId, chunks, embeddings, embeddingModel, null, now);
+	}
+
+	/**
+	 * Replaces the filing's chunks and marks it indexed, atomically.
+	 * @param embeddings null to index for full-text search only
+	 * @param detail why the chunks are not embedded, or null
+	 */
+	@Transactional
+	void replaceChunks(long filingId, List<Chunker.Chunk> chunks, List<float[]> embeddings, String embeddingModel,
+			String detail, Instant now) {
 		jdbc.sql("DELETE FROM text_chunk WHERE filing_id = :id").param("id", filingId).update();
 		for (int i = 0; i < chunks.size(); i++) {
 			Chunker.Chunk chunk = chunks.get(i);
@@ -93,12 +111,53 @@ class IndexRepository {
 		}
 		jdbc.sql("""
 				UPDATE filing_index SET status = 'INDEXED', chunk_count = :count, embedded = :embedded,
-				       embedding_model = :model, detail = NULL, indexed_at = :now, updated_at = :now
+				       embedding_model = :model, detail = :detail, indexed_at = :now, updated_at = :now
 				WHERE filing_id = :id
 				""")
 			.param("count", chunks.size())
 			.param("embedded", embeddings != null)
 			.param("model", embeddings == null ? null : embeddingModel)
+			.param("detail", truncate(detail, 1000))
+			.param("now", Timestamp.from(now))
+			.param("id", filingId)
+			.update();
+	}
+
+	/** The filing's chunks without an embedding, in document order. */
+	List<UnembeddedChunk> unembeddedChunks(long filingId) {
+		return jdbc.sql("""
+				SELECT id, section_title, text FROM text_chunk WHERE filing_id = :id AND embedding IS NULL ORDER BY ordinal
+				""")
+			.param("id", filingId)
+			.query((rs, n) -> new UnembeddedChunk(rs.getLong("id"), rs.getString("section_title"), rs.getString("text")))
+			.list();
+	}
+
+	/**
+	 * Stores embeddings for chunks of an indexed filing and marks it embedded once no
+	 * chunk is left without one.
+	 * @param vectors one per chunk id, in the same order
+	 */
+	@Transactional
+	void storeEmbeddings(long filingId, List<Long> chunkIds, List<float[]> vectors, String embeddingModel, Instant now) {
+		for (int i = 0; i < chunkIds.size(); i++) {
+			jdbc.sql("UPDATE text_chunk SET embedding = CAST(:embedding AS vector), embedding_model = :model WHERE id = :id")
+				.param("embedding", vectorLiteral(vectors.get(i)))
+				.param("model", embeddingModel)
+				.param("id", chunkIds.get(i))
+				.update();
+		}
+		jdbc.sql("""
+				UPDATE filing_index SET embedded = TRUE, embedding_model = :model, detail = NULL, updated_at = :now
+				WHERE filing_id = :id AND status = 'INDEXED'
+				  AND NOT EXISTS (SELECT 1 FROM text_chunk WHERE filing_id = :id AND embedding IS NULL)
+				""").param("model", embeddingModel).param("now", Timestamp.from(now)).param("id", filingId).update();
+	}
+
+	/** Records why the filing is still not embedded, which also restarts the wait before the next attempt. */
+	void markEmbeddingFailed(long filingId, String detail, Instant now) {
+		jdbc.sql("UPDATE filing_index SET detail = :detail, updated_at = :now WHERE filing_id = :id AND status = 'INDEXED'")
+			.param("detail", truncate(detail, 1000))
 			.param("now", Timestamp.from(now))
 			.param("id", filingId)
 			.update();

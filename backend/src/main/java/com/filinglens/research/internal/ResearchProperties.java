@@ -1,6 +1,7 @@
 package com.filinglens.research.internal;
 
 import java.net.URI;
+import java.time.Duration;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -20,9 +21,12 @@ record ResearchProperties(@Valid @NotNull Embeddings embeddings, @Min(1) int pas
 
 	/**
 	 * @param dimensions must match the {@code vector(1024)} column
+	 * @param batchSize chunks per embedding request
+	 * @param requestInterval least time between document embedding requests, to stay
+	 * within the provider's rate limits (zero for none)
 	 */
 	record Embeddings(String apiKey, @NotNull URI baseUrl, @NotBlank String model, @Min(1) int dimensions,
-			@Min(1) int batchSize) {
+			@Min(1) int batchSize, @NotNull Duration requestInterval) {
 
 		boolean configured() {
 			return apiKey != null && !apiKey.isBlank();
