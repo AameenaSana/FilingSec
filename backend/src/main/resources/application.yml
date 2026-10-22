@@ -110,8 +110,9 @@ filinglens:
       base-url: https://api.voyageai.com
       model: ${EMBEDDING_MODEL:voyage-4}
       dimensions: 1024
-      # Voyage's free tier allows 3 requests and 10K tokens a minute: use a batch size
-      # of about 16 and an interval of PT21S there. Paid tiers need neither.
+      # Voyage's free tier allows 3 requests and 10K tokens a minute. Chunks average about
+      # 420 tokens, so use a batch size of 6 and an interval of PT25S there (about 6K tokens
+      # a minute). Paid tiers need neither.
       batch-size: ${EMBEDDING_BATCH_SIZE:64}
       request-interval: ${EMBEDDING_REQUEST_INTERVAL:PT0S}
     passages-per-answer: 12
