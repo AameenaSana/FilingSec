@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import com.anthropic.client.AnthropicClient;
 import com.anthropic.client.okhttp.AnthropicOkHttpClient;
 import com.anthropic.core.http.StreamResponse;
+import com.anthropic.errors.AnthropicServiceException;
 import com.anthropic.helpers.BetaMessageAccumulator;
 import com.anthropic.models.beta.AnthropicBeta;
 import com.anthropic.models.beta.messages.BetaCitationSearchResultLocation;
@@ -31,6 +32,7 @@ import com.anthropic.models.beta.messages.BetaTextCitation;
 import com.anthropic.models.beta.messages.MessageCreateParams;
 import com.filinglens.ai.AiModel;
 import com.filinglens.ai.AiNotConfiguredException;
+import com.filinglens.ai.AiRequestRejectedException;
 
 /**
  * {@link AiModel} backed by Claude via the official Java SDK. Passages are sent
@@ -76,7 +78,21 @@ class ClaudeAiModel implements AiModel {
 					.ifPresent(text -> onText.accept(text.text()));
 			});
 		}
+		catch (AnthropicServiceException ex) {
+			if (isRejection(ex.statusCode())) {
+				throw new AiRequestRejectedException(ex.statusCode(), ex.getMessage(), ex);
+			}
+			throw ex;
+		}
 		return toResponse(accumulator.message());
+	}
+
+	/**
+	 * Client errors other than timeouts, conflicts and rate limiting (which the SDK
+	 * already retries) fail the same way however often they are repeated.
+	 */
+	static boolean isRejection(int statusCode) {
+		return statusCode >= 400 && statusCode < 500 && statusCode != 408 && statusCode != 409 && statusCode != 429;
 	}
 
 	MessageCreateParams params(AiRequest request) {

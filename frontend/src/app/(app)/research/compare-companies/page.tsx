@@ -3,6 +3,9 @@ import { CrossCompanyForm } from "@/components/research/CrossCompanyForm";
 
 export const metadata: Metadata = { title: "Compare companies · FilingLens" };
 
+// Rendered only after sign-in is confirmed in the browser; see (app)/layout.tsx.
+export const instant = false;
+
 export default function CompareCompaniesPage() {
   return (
     <div className="flex max-w-3xl flex-col gap-6">

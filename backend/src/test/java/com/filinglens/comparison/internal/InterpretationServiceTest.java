@@ -24,6 +24,7 @@ import com.filinglens.ai.AiModel.Cite;
 import com.filinglens.ai.AiModel.Passage;
 import com.filinglens.ai.AiModel.Segment;
 import com.filinglens.ai.AiNotConfiguredException;
+import com.filinglens.ai.AiRequestRejectedException;
 import com.filinglens.ai.AiUsage;
 import com.filinglens.comparison.internal.ComparisonViews.BlockSide;
 import com.filinglens.comparison.internal.ComparisonViews.ChangeView;
@@ -35,7 +36,10 @@ import com.filinglens.comparison.internal.InterpretationService.InterpretationRe
 import com.filinglens.comparison.internal.InterpretationService.InterpretationView;
 import com.filinglens.comparison.internal.InterpretationService.ParsedInterpretation;
 import com.filinglens.platform.error.ConflictException;
+import com.filinglens.platform.jobs.Job;
 import com.filinglens.platform.jobs.JobQueue;
+
+import tools.jackson.databind.json.JsonMapper;
 
 class InterpretationServiceTest {
 
@@ -140,6 +144,38 @@ class InterpretationServiceTest {
 		service.request(user, 9, "10K.ITEM_1A");
 		verify(interpretations, never()).startPending(5, InterpretationService.PROMPT_VERSION, null);
 		verify(jobs).enqueueUnique(anyString(), anyMap(), anyString());
+	}
+
+	@Test
+	void permanentFailureDoesNotShowTheProviderError() {
+		InterpretationRepository interpretations = mock(InterpretationRepository.class);
+		var job = new InterpretationService.InterpretationJob(mock(ComparisonService.class),
+				mock(ComparisonRepository.class), interpretations, mock(AiModel.class), mock(AiUsage.class),
+				JsonMapper.builder().build());
+
+		job.onPermanentFailure(new Job(1, InterpretationService.InterpretationJob.TYPE, "{\"interpretationId\":77}", 5, 5),
+				new IllegalStateException("400: {\"error\":{\"message\":\"Your credit balance is too low\"}}"));
+
+		verify(interpretations).finish(77, "FAILED", null, null, List.of(), null, null, null, 0, 0,
+				"The interpretation could not be generated. Please try again later.");
+	}
+
+	@Test
+	void providerRejectionFailsAtOnceWithoutRetries() {
+		InterpretationRepository interpretations = mock(InterpretationRepository.class);
+		var job = new InterpretationService.InterpretationJob(mock(ComparisonService.class),
+				mock(ComparisonRepository.class), interpretations, mock(AiModel.class), mock(AiUsage.class),
+				JsonMapper.builder().build());
+		var rejection = new AiRequestRejectedException(400, "Your credit balance is too low", null);
+
+		assertThat(job.isPermanent(rejection)).isTrue();
+		assertThat(job.isPermanent(new IllegalStateException("timeout"))).isFalse();
+		assertThat(job.transactional()).as("does not hold a connection during the model call").isFalse();
+
+		job.onPermanentFailure(new Job(1, InterpretationService.InterpretationJob.TYPE, "{\"interpretationId\":77}", 1, 5),
+				rejection);
+		verify(interpretations).finish(77, "FAILED", null, null, List.of(), null, null, null, 0, 0,
+				InterpretationService.InterpretationJob.UNAVAILABLE_DETAIL);
 	}
 
 	static ComparisonView view(Status status, FilingInfo filing) {

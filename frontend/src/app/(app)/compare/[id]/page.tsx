@@ -5,6 +5,9 @@ import { ComparisonView } from "@/components/comparison/ComparisonView";
 
 export const metadata: Metadata = { title: "Comparison · FilingLens" };
 
+// Rendered only after sign-in is confirmed in the browser; see (app)/layout.tsx.
+export const instant = false;
+
 export default function ComparisonPage({ params, searchParams }: PageProps<"/compare/[id]">) {
   return (
     <div className="max-w-6xl">

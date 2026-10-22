@@ -32,6 +32,7 @@ import com.filinglens.document.LocatedBlock;
 import com.filinglens.filing.FilingCatalog;
 import com.filinglens.filing.FilingRef;
 import com.filinglens.platform.config.FilingLensProperties;
+import com.filinglens.platform.error.ConflictException;
 import com.filinglens.platform.error.InvalidRequestException;
 import com.filinglens.platform.error.NotFoundException;
 import com.filinglens.research.CitationLookup;
@@ -164,6 +165,47 @@ class WorkspaceServiceTest {
 			.isInstanceOf(InvalidRequestException.class);
 		assertThatThrownBy(() -> service.updateFinding(USER, 7, 4L, null, null)).isInstanceOf(NotFoundException.class);
 		verify(repository, never()).insertFinding(any(), any(), any(), any(), any(), any());
+	}
+
+	@Test
+	void partialUpdateKeepsFieldsThatWereNotSent() {
+		when(repository.session(USER, 4L)).thenReturn(Optional.of(new SessionRow(4, "AI risk", null, NOW, NOW)));
+		when(repository.finding(USER, 7L)).thenReturn(Optional.of(finding("Keep me", null)));
+		when(repository.updateFinding(any(), anyLong(), any(), any(), any(), any())).thenReturn(true);
+
+		service.updateFinding(USER, 7, new WorkspaceService.FindingChanges(true, 4L, false, null, false, null));
+
+		verify(repository).updateFinding(USER, 7, 4L, "Keep me", List.of("ai"), NOW);
+	}
+
+	@Test
+	void partialUpdateClearsFieldsSentAsNull() {
+		when(repository.finding(USER, 7L)).thenReturn(Optional.of(finding("Old note", null)));
+		when(repository.updateFinding(any(), anyLong(), any(), any(), any(), any())).thenReturn(true);
+
+		service.updateFinding(USER, 7, new WorkspaceService.FindingChanges(false, null, true, null, true, List.of()));
+
+		verify(repository).updateFinding(USER, 7, null, null, List.of(), NOW);
+	}
+
+	@Test
+	void savingTheSameSourceTwiceInOneSessionIsRejected() {
+		when(filings.findByAccession(ACCESSION)).thenReturn(Optional.of(new FilingRef(11, 1, ACCESSION, "0000320193",
+				"Apple Inc.", "10-K", null, null, null, null, "FETCHED")));
+		when(documents.block(11, 12)).thenReturn(Optional.of(new LocatedBlock(
+				new BlockText(12, "10K.ITEM_1A/p12", "PARAGRAPH", "AI may fail.", "h"), "10K.ITEM_1A", "Risk Factors")));
+		when(repository.hasDuplicate(eq(USER), isNull(), any())).thenReturn(true);
+
+		assertThatThrownBy(() -> service.saveFinding(USER, null,
+				new SourceReference("PASSAGE", null, null, null, null, ACCESSION, 12), null, null))
+			.isInstanceOf(ConflictException.class);
+		verify(repository, never()).insertFinding(any(), any(), any(), any(), any(), any());
+	}
+
+	@Test
+	void exportEscapesUserTextSoItCannotAddLinksOrHeadings() {
+		assertThat(WorkspaceService.escapeMarkdown("Line1\n# Heading\n[x](javascript:alert(1)) <b>*bold*</b>"))
+			.isEqualTo("Line1  \n\\# Heading  \n\\[x\\](javascript:alert(1)) \\<b\\>\\*bold\\*\\</b\\>");
 	}
 
 	@Test

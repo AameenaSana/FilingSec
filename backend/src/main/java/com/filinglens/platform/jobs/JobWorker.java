@@ -4,6 +4,8 @@ import java.net.InetAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -19,8 +21,10 @@ import com.filinglens.platform.config.FilingLensProperties;
 
 /**
  * Polls the {@link JobQueue} and dispatches claimed jobs to their
- * {@link JobHandler}. Each job runs in its own transaction; a failure rolls back
- * the handler's work and schedules a retry.
+ * {@link JobHandler}. The jobs claimed in one poll run concurrently, so a slow job
+ * (one waiting on an external service) does not hold up the others. Each job runs
+ * in its own transaction unless its handler opts out; a failure rolls back the
+ * handler's work and schedules a retry.
  */
 @Component
 @ConditionalOnBooleanProperty("filinglens.jobs.enabled")
@@ -53,43 +57,48 @@ class JobWorker {
 		if (released > 0) {
 			log.warn("Released {} stale job locks", released);
 		}
-		for (Job job : queue.claim(workerId, settings.batchSize())) {
-			execute(job);
+		List<Job> claimed = queue.claim(workerId, settings.batchSize());
+		if (claimed.size() == 1) {
+			execute(claimed.getFirst());
+			return;
+		}
+		// Closing the executor waits for every job, so the next poll starts after this batch.
+		try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+			for (Job job : claimed) {
+				executor.execute(() -> execute(job));
+			}
 		}
 	}
 
 	void execute(Job job) {
 		MDC.put("jobId", Long.toString(job.id()));
 		MDC.put("jobType", job.type());
+		JobHandler handler = handlers.get(job.type());
 		try {
-			JobHandler handler = handlers.get(job.type());
 			if (handler == null) {
 				log.error("No handler registered for job type {}", job.type());
 				queue.markFailed(job, "No handler registered for job type " + job.type(), true);
 				return;
 			}
 			long start = System.nanoTime();
-			transactionTemplate.executeWithoutResult(status -> {
-				try {
-					handler.handle(job);
-				}
-				catch (RuntimeException ex) {
-					throw ex;
-				}
-				catch (Exception ex) {
-					throw new JobExecutionException(ex);
-				}
-			});
+			if (handler.transactional()) {
+				transactionTemplate.executeWithoutResult(status -> run(handler, job));
+			}
+			else {
+				run(handler, job);
+			}
 			queue.markSucceeded(job.id());
 			log.info("Job succeeded in {} ms (attempt {})", (System.nanoTime() - start) / 1_000_000, job.attempt());
 		}
 		catch (RuntimeException ex) {
 			Throwable cause = ex instanceof JobExecutionException ? ex.getCause() : ex;
-			log.warn("Job failed (attempt {}/{})", job.attempt(), job.maxAttempts(), cause);
+			boolean permanent = handler == null || handler.isPermanent(cause);
+			log.warn("Job failed (attempt {}/{}{})", job.attempt(), job.maxAttempts(),
+					permanent ? ", not retryable" : "", cause);
 			boolean exhausted = queue.markFailed(job, cause.getClass().getSimpleName() + ": " + cause.getMessage(),
-					false);
-			if (exhausted) {
-				notifyPermanentFailure(job, cause);
+					permanent);
+			if (exhausted && handler != null) {
+				notifyPermanentFailure(handler, job, cause);
 			}
 		}
 		finally {
@@ -98,8 +107,19 @@ class JobWorker {
 		}
 	}
 
-	private void notifyPermanentFailure(Job job, Throwable cause) {
-		JobHandler handler = handlers.get(job.type());
+	private static void run(JobHandler handler, Job job) {
+		try {
+			handler.handle(job);
+		}
+		catch (RuntimeException ex) {
+			throw ex;
+		}
+		catch (Exception ex) {
+			throw new JobExecutionException(ex);
+		}
+	}
+
+	private void notifyPermanentFailure(JobHandler handler, Job job, Throwable cause) {
 		try {
 			transactionTemplate.executeWithoutResult(status -> handler.onPermanentFailure(job, cause));
 		}

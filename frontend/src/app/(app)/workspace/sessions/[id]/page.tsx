@@ -5,6 +5,9 @@ import { SessionView } from "@/components/workspace/SessionView";
 
 export const metadata: Metadata = { title: "Research session · FilingLens" };
 
+// Rendered only after sign-in is confirmed in the browser; see (app)/layout.tsx.
+export const instant = false;
+
 export default function SessionPage({ params }: PageProps<"/workspace/sessions/[id]">) {
   return (
     <div className="max-w-4xl">

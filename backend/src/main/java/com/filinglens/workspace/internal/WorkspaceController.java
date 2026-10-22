@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.filinglens.identity.UserPrincipal;
 import com.filinglens.platform.ratelimit.RateLimiter;
+import com.filinglens.workspace.internal.WorkspaceService.FindingChanges;
 import com.filinglens.workspace.internal.WorkspaceService.SourceReference;
 import com.filinglens.workspace.internal.WorkspaceViews.FindingView;
 import com.filinglens.workspace.internal.WorkspaceViews.SessionSummary;
@@ -67,8 +68,46 @@ class WorkspaceController {
 			@Size(max = 5000) String note, @Size(max = 10) List<@Size(max = 40) String> tags) {
 	}
 
-	record UpdateFindingRequest(@Positive Long sessionId, @Size(max = 5000) String note,
-			@Size(max = 10) List<@Size(max = 40) String> tags) {
+	/**
+	 * A partial update: fields left out of the JSON are unchanged, while a field
+	 * given as null is cleared (for {@code sessionId}, the finding becomes unfiled).
+	 */
+	static final class UpdateFindingRequest {
+
+		@Positive
+		private Long sessionId;
+
+		private boolean sessionIdSet;
+
+		@Size(max = 5000)
+		private String note;
+
+		private boolean noteSet;
+
+		@Size(max = 10)
+		private List<@Size(max = 40) String> tags;
+
+		private boolean tagsSet;
+
+		public void setSessionId(Long sessionId) {
+			this.sessionId = sessionId;
+			this.sessionIdSet = true;
+		}
+
+		public void setNote(String note) {
+			this.note = note;
+			this.noteSet = true;
+		}
+
+		public void setTags(List<String> tags) {
+			this.tags = tags;
+			this.tagsSet = true;
+		}
+
+		FindingChanges changes() {
+			return new FindingChanges(sessionIdSet, sessionId, noteSet, note, tagsSet, tags);
+		}
+
 	}
 
 	// --- Sessions ----------------------------------------------------------------
@@ -137,7 +176,7 @@ class WorkspaceController {
 	@PatchMapping("/api/v1/findings/{id}")
 	FindingView update(@AuthenticationPrincipal UserPrincipal user, @PathVariable long id,
 			@Valid @RequestBody UpdateFindingRequest body) {
-		return workspace.updateFinding(user.id(), id, body.sessionId(), body.note(), body.tags());
+		return workspace.updateFinding(user.id(), id, body.changes());
 	}
 
 	@DeleteMapping("/api/v1/findings/{id}")

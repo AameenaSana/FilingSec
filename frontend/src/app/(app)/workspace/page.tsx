@@ -3,6 +3,9 @@ import { WorkspaceView } from "@/components/workspace/WorkspaceView";
 
 export const metadata: Metadata = { title: "Workspace · FilingLens" };
 
+// Rendered only after sign-in is confirmed in the browser; see (app)/layout.tsx.
+export const instant = false;
+
 export default function WorkspacePage() {
   return (
     <div className="flex flex-col gap-6">

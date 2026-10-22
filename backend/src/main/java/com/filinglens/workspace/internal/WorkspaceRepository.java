@@ -153,6 +153,29 @@ class WorkspaceRepository {
 			.single();
 	}
 
+	/** Whether the user already saved this source to the session, or unfiled when {@code sessionId} is null. */
+	boolean hasDuplicate(UUID userId, Long sessionId, FindingSource source) {
+		return jdbc.sql("""
+				SELECT EXISTS (
+				    SELECT 1 FROM finding
+				    WHERE user_id = :user AND research_session_id IS NOT DISTINCT FROM CAST(:session AS bigint)
+				      AND source_type = :type AND filing_id = :filing AND block_ordinal = :ordinal
+				      AND comparison_id IS NOT DISTINCT FROM CAST(:comparison AS bigint)
+				      AND change_ordinal IS NOT DISTINCT FROM CAST(:changeOrdinal AS integer)
+				      AND conversation_id IS NOT DISTINCT FROM CAST(:conversation AS bigint))
+				""")
+			.param("user", userId)
+			.param("session", sessionId)
+			.param("type", source.sourceType())
+			.param("filing", source.filingId())
+			.param("ordinal", source.blockOrdinal())
+			.param("comparison", source.comparisonId())
+			.param("changeOrdinal", source.changeOrdinal())
+			.param("conversation", source.conversationId())
+			.query(Boolean.class)
+			.single();
+	}
+
 	int countFindings(UUID userId) {
 		return jdbc.sql("SELECT count(*) FROM finding WHERE user_id = :user").param("user", userId).query(Integer.class).single();
 	}

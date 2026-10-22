@@ -1,6 +1,7 @@
 package com.filinglens.ai.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -8,6 +9,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterEach;
@@ -20,6 +22,7 @@ import com.filinglens.ai.AiModel.AiResponse;
 import com.filinglens.ai.AiModel.Cite;
 import com.filinglens.ai.AiModel.Passage;
 import com.filinglens.ai.AiModel.Turn;
+import com.filinglens.ai.AiRequestRejectedException;
 import com.sun.net.httpserver.HttpServer;
 
 import tools.jackson.databind.JsonNode;
@@ -140,6 +143,46 @@ class ClaudeAiModelTest {
 		assertThat(searchResult.path("content").get(1).path("text").asString())
 			.isEqualTo("The Company's generative AI features may not be successful.");
 		assertThat(content.get(1).path("text").asString()).isEqualTo("What AI risks does Apple describe?");
+	}
+
+	@Test
+	void billingAndAuthErrorsAreReportedAsRejectionsWithoutRetrying() throws IOException {
+		server.stop(0);
+		var requests = new AtomicInteger();
+		server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+		server.createContext("/", exchange -> {
+			requests.incrementAndGet();
+			exchange.getRequestBody().readAllBytes();
+			byte[] body = """
+					{"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low"}}"""
+				.getBytes(StandardCharsets.UTF_8);
+			exchange.getResponseHeaders().add("Content-Type", "application/json");
+			exchange.sendResponseHeaders(400, body.length);
+			try (OutputStream out = exchange.getResponseBody()) {
+				out.write(body);
+			}
+		});
+		server.start();
+		var client = AnthropicOkHttpClient.builder()
+			.apiKey("test-key")
+			.baseUrl("http://127.0.0.1:" + server.getAddress().getPort())
+			.build();
+		model = new ClaudeAiModel(new AiProperties("test-key", "claude-opus-5-5", 64000, "medium", 1_000_000), client);
+
+		assertThatThrownBy(() -> model.generate(request(), text -> {
+		})).isInstanceOf(AiRequestRejectedException.class)
+			.satisfies(ex -> assertThat(((AiRequestRejectedException) ex).statusCode()).isEqualTo(400));
+		assertThat(requests).hasValue(1);
+	}
+
+	@Test
+	void onlyClientErrorsThatRetryingCannotFixAreRejections() {
+		assertThat(ClaudeAiModel.isRejection(400)).isTrue();
+		assertThat(ClaudeAiModel.isRejection(401)).isTrue();
+		assertThat(ClaudeAiModel.isRejection(403)).isTrue();
+		assertThat(ClaudeAiModel.isRejection(429)).isFalse();
+		assertThat(ClaudeAiModel.isRejection(408)).isFalse();
+		assertThat(ClaudeAiModel.isRejection(529)).isFalse();
 	}
 
 	static AiRequest request() {

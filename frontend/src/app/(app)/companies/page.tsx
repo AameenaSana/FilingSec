@@ -3,6 +3,9 @@ import { CompanySearch } from "@/components/companies/CompanySearch";
 
 export const metadata: Metadata = { title: "Companies · FilingLens" };
 
+// Rendered only after sign-in is confirmed in the browser; see (app)/layout.tsx.
+export const instant = false;
+
 export default function CompaniesPage() {
   return (
     <div className="flex max-w-3xl flex-col gap-6">

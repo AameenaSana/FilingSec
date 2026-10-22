@@ -21,6 +21,7 @@ import com.filinglens.ai.AiModel.AiRequest;
 import com.filinglens.ai.AiModel.AiResponse;
 import com.filinglens.ai.AiModel.Passage;
 import com.filinglens.ai.AiNotConfiguredException;
+import com.filinglens.ai.AiRequestRejectedException;
 import com.filinglens.ai.AiUsage;
 import com.filinglens.filing.FilingCatalog;
 import com.filinglens.filing.FilingRef;
@@ -250,7 +251,10 @@ class ResearchService {
 			log.error("Answering failed for conversation {}", conversationId, ex);
 			conversations.finishMessage(answerId, "", "FAILED", null, null, null, null, ex.getMessage());
 			try {
-				send(emitter, "error", Map.of("message", "The answer could not be generated. Please try again."));
+				String message = ex instanceof AiRequestRejectedException
+						? "AI answers are unavailable right now. Please try again later."
+						: "The answer could not be generated. Please try again.";
+				send(emitter, "error", Map.of("message", message));
 			}
 			catch (RuntimeException ignored) {
 				// The client has gone away.

@@ -17,6 +17,7 @@ import static org.mockito.Mockito.when;
 
 import java.net.URI;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -72,7 +73,7 @@ class ResearchServiceTest {
 	final AiUsage usage = mock(AiUsage.class);
 
 	final ResearchProperties properties = new ResearchProperties(
-			new ResearchProperties.Embeddings(null, URI.create("https://api.voyageai.com"), "voyage-4", 1024, 64), 12);
+			new ResearchProperties.Embeddings(null, URI.create("https://api.voyageai.com"), "voyage-4", 1024, 64, Duration.ZERO), 12);
 
 	// Runs the streaming task inline so its effects can be verified.
 	final ResearchService service = new ResearchService(conversations, filings, indexing, retriever, model, usage,
