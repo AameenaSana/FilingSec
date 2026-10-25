@@ -122,7 +122,7 @@ class ClaudeAiModel implements AiModel {
 			content.add(BetaContentBlockParam.ofSearchResult(result.build()));
 		}
 		content.add(BetaContentBlockParam.ofText(BetaTextBlockParam.builder().text(request.prompt()).build()));
-		builder.addUserMessageOfBetaContentBlockParams(content);
+		builder.addUserMessageOfContentBlockParams(content);
 		return builder.build();
 	}
 
