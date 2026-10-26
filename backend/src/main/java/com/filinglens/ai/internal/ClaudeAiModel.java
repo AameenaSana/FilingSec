@@ -29,6 +29,7 @@ import com.anthropic.models.beta.messages.BetaStopReason;
 import com.anthropic.models.beta.messages.BetaTextBlock;
 import com.anthropic.models.beta.messages.BetaTextBlockParam;
 import com.anthropic.models.beta.messages.BetaTextCitation;
+import com.anthropic.models.beta.messages.BetaUsage;
 import com.anthropic.models.beta.messages.MessageCreateParams;
 import com.filinglens.ai.AiModel;
 import com.filinglens.ai.AiNotConfiguredException;
@@ -136,9 +137,42 @@ class ClaudeAiModel implements AiModel {
 			message.stopDetails()
 				.ifPresent(details -> log.warn("Request refused: category={}", details.category().orElse(null)));
 		}
-		long cacheRead = message.usage().cacheReadInputTokens().orElse(0L);
+		Tokens tokens = billedTokens(message.usage());
 		return new AiResponse(segments, refused, message.stopReason().map(Object::toString).orElse(null),
-				message.model().toString(), message.usage().inputTokens(), message.usage().outputTokens(), cacheRead);
+				message.model().toString(), tokens.input(), tokens.output(), tokens.cacheRead());
+	}
+
+	/**
+	 * Input, output and cache-read tokens across every attempt. After a refusal
+	 * fallback the top-level usage covers only the attempt that produced the
+	 * message, while the declined attempts are billed too and listed in
+	 * {@code iterations}.
+	 */
+	static Tokens billedTokens(BetaUsage usage) {
+		List<BetaUsage.Iteration> iterations = usage.iterations().orElse(List.of());
+		if (iterations.isEmpty()) {
+			return new Tokens(usage.inputTokens(), usage.outputTokens(), usage.cacheReadInputTokens().orElse(0L));
+		}
+		Tokens total = new Tokens(0, 0, 0);
+		for (BetaUsage.Iteration iteration : iterations) {
+			if (iteration.message().isPresent()) {
+				var attempt = iteration.message().get();
+				total = total.plus(attempt.inputTokens(), attempt.outputTokens(), attempt.cacheReadInputTokens());
+			}
+			else if (iteration.fallbackMessage().isPresent()) {
+				var attempt = iteration.fallbackMessage().get();
+				total = total.plus(attempt.inputTokens(), attempt.outputTokens(), attempt.cacheReadInputTokens());
+			}
+		}
+		return total;
+	}
+
+	record Tokens(long input, long output, long cacheRead) {
+
+		Tokens plus(long input, long output, long cacheRead) {
+			return new Tokens(this.input + input, this.output + output, this.cacheRead + cacheRead);
+		}
+
 	}
 
 	private static Segment segment(BetaTextBlock text) {
