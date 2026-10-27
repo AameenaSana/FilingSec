@@ -17,6 +17,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.anthropic.client.okhttp.AnthropicOkHttpClient;
+import com.anthropic.core.ObjectMappers;
+import com.anthropic.models.beta.messages.BetaUsage;
 import com.filinglens.ai.AiModel.AiRequest;
 import com.filinglens.ai.AiModel.AiResponse;
 import com.filinglens.ai.AiModel.Cite;
@@ -173,6 +175,27 @@ class ClaudeAiModelTest {
 		})).isInstanceOf(AiRequestRejectedException.class)
 			.satisfies(ex -> assertThat(((AiRequestRejectedException) ex).statusCode()).isEqualTo(400));
 		assertThat(requests).hasValue(1);
+	}
+
+	@Test
+	void countsTokensOfEveryAttemptAfterARefusalFallback() throws Exception {
+		BetaUsage usage = ObjectMappers.jsonMapper().readValue("""
+				{"input_tokens":900,"output_tokens":300,"cache_read_input_tokens":0,"cache_creation_input_tokens":0,
+				 "iterations":[
+				  {"type":"message","model":"claude-sonnet-5-5","input_tokens":1000,"output_tokens":120,
+				   "cache_read_input_tokens":0,"cache_creation_input_tokens":0},
+				  {"type":"fallback_message","model":"claude-sonnet-5","input_tokens":900,"output_tokens":300,
+				   "cache_read_input_tokens":50,"cache_creation_input_tokens":0}]}""", BetaUsage.class);
+
+		assertThat(ClaudeAiModel.billedTokens(usage)).isEqualTo(new ClaudeAiModel.Tokens(1900, 420, 50));
+	}
+
+	@Test
+	void usesTopLevelUsageWithoutIterations() throws Exception {
+		BetaUsage usage = ObjectMappers.jsonMapper().readValue("""
+				{"input_tokens":1200,"output_tokens":42,"cache_read_input_tokens":7}""", BetaUsage.class);
+
+		assertThat(ClaudeAiModel.billedTokens(usage)).isEqualTo(new ClaudeAiModel.Tokens(1200, 42, 7));
 	}
 
 	@Test
