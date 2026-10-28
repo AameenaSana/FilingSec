@@ -62,6 +62,7 @@ final class WordDiff {
 		return 2.0 * shared / (sizeA + sizeB);
 	}
 
+	/** Number of word tokens in {@code text}; punctuation and whitespace are not counted. */
 	static int wordCount(String text) {
 		Matcher matcher = WORD.matcher(text);
 		int count = 0;

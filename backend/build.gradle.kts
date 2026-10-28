@@ -1,6 +1,6 @@
 plugins {
 	java
-	id("org.springframework.boot") version "4.1.1"
+	id("org.springframework.boot") version "4.1.2"
 	id("io.spring.dependency-management") version "1.1.7"
 }
 
@@ -35,7 +35,7 @@ dependencies {
 	implementation("com.github.ben-manes.caffeine:caffeine")
 	implementation("org.jsoup:jsoup:1.23.2")
 	implementation("io.github.java-diff-utils:java-diff-utils:4.18")
-	implementation("com.anthropic:anthropic-java:3.0.0")
+	implementation("com.anthropic:anthropic-java:3.2.0")
 	runtimeOnly("org.bouncycastle:bcprov-jdk18on:1.86")
 	runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 	runtimeOnly("org.postgresql:postgresql")
