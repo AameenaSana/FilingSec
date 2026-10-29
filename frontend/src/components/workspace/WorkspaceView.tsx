@@ -66,7 +66,7 @@ export function WorkspaceView() {
                 type="button"
                 aria-pressed={scope === value}
                 onClick={() => setScope(value)}
-                className="h-10 px-3 aria-pressed:bg-zinc-900 aria-pressed:text-white dark:aria-pressed:bg-zinc-100 dark:aria-pressed:text-zinc-900"
+                className="h-10 px-3 aria-pressed:border-violet-600 aria-pressed:bg-violet-600 aria-pressed:text-white dark:aria-pressed:border-violet-500 dark:aria-pressed:bg-violet-500 dark:aria-pressed:text-white"
               >
                 {value === "all" ? "All" : "Unfiled"}
               </button>
@@ -82,7 +82,7 @@ export function WorkspaceView() {
           </p>
         )}
         {findings.isPending && (
-          <p role="status" className="text-sm text-zinc-500">
+          <p role="status" className="animate-pulse text-sm text-zinc-500">
             Loading findings…
           </p>
         )}

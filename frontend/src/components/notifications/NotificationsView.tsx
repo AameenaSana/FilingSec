@@ -34,7 +34,7 @@ export function NotificationsView() {
               type="button"
               aria-pressed={unreadOnly === value}
               onClick={() => setUnreadOnly(value)}
-              className="h-9 px-3 aria-pressed:bg-zinc-900 aria-pressed:text-white dark:aria-pressed:bg-zinc-100 dark:aria-pressed:text-zinc-900"
+              className="h-9 px-3 aria-pressed:border-violet-600 aria-pressed:bg-violet-600 aria-pressed:text-white dark:aria-pressed:border-violet-500 dark:aria-pressed:bg-violet-500 dark:aria-pressed:text-white"
             >
               {value ? "Unread" : "All"}
             </button>
@@ -52,13 +52,13 @@ export function NotificationsView() {
         </Button>
       </div>
       {isPending && (
-        <p role="status" className="text-sm text-zinc-500">
+        <p role="status" className="animate-pulse text-sm text-zinc-500">
           Loading notifications…
         </p>
       )}
       {error && <Alert tone="error">{errorMessage(error)}</Alert>}
       {data && (
-        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="rounded-xl border border-zinc-200 bg-white shadow-xs dark:border-zinc-800 dark:bg-zinc-950">
           <NotificationList items={data.items} />
         </div>
       )}

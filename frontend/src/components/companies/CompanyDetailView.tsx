@@ -14,7 +14,7 @@ export function CompanyDetailView({ cik }: { cik: string }) {
   });
 
   if (isPending) {
-    return <p role="status" className="text-sm text-zinc-500">Loading company…</p>;
+    return <p role="status" className="animate-pulse text-sm text-zinc-500">Loading company…</p>;
   }
   if (error) {
     return (
@@ -53,7 +53,7 @@ export function CompanyDetailView({ cik }: { cik: string }) {
       {!company.profileSyncedAt && (
         <Alert>Full company details could not be loaded from SEC EDGAR yet. Showing directory information only.</Alert>
       )}
-      <dl className="grid grid-cols-1 gap-x-8 gap-y-3 rounded-lg border border-zinc-200 p-6 sm:grid-cols-2 dark:border-zinc-800">
+      <dl className="grid grid-cols-1 gap-x-8 gap-y-3 rounded-xl border border-zinc-200 bg-white p-6 shadow-xs transition-shadow hover:shadow-sm sm:grid-cols-2 dark:border-zinc-800 dark:bg-zinc-950">
         {facts
           .filter(([, value]) => value)
           .map(([label, value]) => (

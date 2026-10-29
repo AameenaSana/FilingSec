@@ -51,7 +51,7 @@ export function FilingDetailView({ accession }: { accession: string }) {
   }, [filing?.status, download]);
 
   if (isPending) {
-    return <p role="status" className="text-sm text-zinc-500">Loading filing…</p>;
+    return <p role="status" className="animate-pulse text-sm text-zinc-500">Loading filing…</p>;
   }
   if (error) {
     return (
@@ -153,7 +153,7 @@ function Metadata({ filing }: { filing: FilingDetail }) {
     ["XBRL", filing.inlineXbrl ? "Inline XBRL" : filing.xbrl ? "XBRL" : "None"],
   ];
   return (
-    <dl className="grid grid-cols-1 gap-x-8 gap-y-3 rounded-lg border border-zinc-200 p-6 sm:grid-cols-2 lg:grid-cols-3 dark:border-zinc-800">
+    <dl className="grid grid-cols-1 gap-x-8 gap-y-3 rounded-xl border border-zinc-200 bg-white p-6 shadow-xs transition-shadow hover:shadow-sm sm:grid-cols-2 lg:grid-cols-3 dark:border-zinc-800 dark:bg-zinc-950">
       {facts
         .filter(([, value]) => value)
         .map(([label, value]) => (
@@ -177,7 +177,7 @@ function DocumentsTable({ filing }: { filing: FilingDetail }) {
     );
   }
   return (
-    <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+    <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-xs dark:border-zinc-800 dark:bg-zinc-950">
       <table className="w-full text-left text-sm">
         <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
           <tr>

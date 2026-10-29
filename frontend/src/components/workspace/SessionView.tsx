@@ -32,7 +32,7 @@ export function SessionView({ id }: { id: number }) {
 
   if (isPending) {
     return (
-      <p role="status" className="text-sm text-zinc-500">
+      <p role="status" className="animate-pulse text-sm text-zinc-500">
         Loading session…
       </p>
     );

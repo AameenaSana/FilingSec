@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import { errorMessage } from "@/lib/api/client";
 import { useWatchedCiks, useWatchlistMutations } from "@/lib/query/useWatchlist";
 
@@ -24,6 +25,7 @@ export function WatchButton({ cik, companyName }: { cik: string; companyName: st
         aria-label={itemId ? `Stop watching ${companyName}` : `Watch ${companyName}`}
         onClick={() => (itemId ? remove.mutate(itemId) : add.mutate(cik))}
       >
+        {!pending && <Icon key={itemId ? "on" : "off"} name={itemId ? "check" : "plus"} className="size-3.5 animate-scale-in" />}
         {itemId ? "Watching" : "Watch"}
       </Button>
       {error && (

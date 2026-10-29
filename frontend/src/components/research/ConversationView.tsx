@@ -31,7 +31,7 @@ export function ConversationView({ id, initialQuestion }: { id: number; initialQ
   const [askError, setAskError] = useState<string | null>(null);
 
   if (isPending) {
-    return <p role="status" className="text-sm text-zinc-500">Loading conversation…</p>;
+    return <p role="status" className="animate-pulse text-sm text-zinc-500">Loading conversation…</p>;
   }
   if (error) {
     return (
@@ -196,7 +196,7 @@ function UserBubble({ text }: { text: string }) {
 
 function AssistantCard({ children }: { children: React.ReactNode }) {
   return (
-    <article className="rounded-lg border border-zinc-200 p-4 text-sm dark:border-zinc-800">
+    <article className="rounded-xl border border-zinc-200 bg-white p-4 shadow-xs transition-shadow hover:shadow-sm text-sm dark:border-zinc-800 dark:bg-zinc-950">
       <p className="mb-2 text-xs font-medium tracking-wide text-zinc-500 uppercase">AI answer</p>
       {children}
     </article>
