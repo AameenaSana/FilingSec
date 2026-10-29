@@ -1,4 +1,5 @@
 import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dashboard } from "@/lib/api/dashboard";
 import { renderWithQuery } from "@/test/render";
@@ -119,5 +120,19 @@ describe("DashboardView", () => {
     expect(screen.getByRole("link", { name: "Apple AI risks" })).toHaveAttribute("href", "/research/3");
     expect(screen.getByRole("link", { name: "AI disclosures" })).toHaveAttribute("href", "/workspace/sessions/4");
     expect(screen.getByText("1 finding")).toBeInTheDocument();
+  });
+
+  it("filters recent filings by form", async () => {
+    const annual = { ...FULL.recentFilings[0], accessionNumber: "0000320193-25-000079", formType: "10-K", items: null };
+    get.mockResolvedValue({ ...FULL, recentFilings: [...FULL.recentFilings, annual] });
+    renderWithQuery(<DashboardView />);
+    const user = userEvent.setup();
+
+    const filings = await screen.findByRole("region", { name: "Recent filings" });
+    await user.click(within(filings).getByRole("button", { name: "10-K" }));
+
+    expect(within(filings).getByRole("button", { name: "10-K" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(filings).getByRole("link", { name: "10-K" })).toBeInTheDocument();
+    expect(within(filings).queryByRole("link", { name: "8-K" })).not.toBeInTheDocument();
   });
 });

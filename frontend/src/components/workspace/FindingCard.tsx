@@ -25,7 +25,7 @@ export function FindingCard({ finding, sessions }: { finding: Finding; sessions:
   });
 
   return (
-    <article className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+    <article className="rounded-xl border border-zinc-200 bg-white p-4 shadow-xs transition-shadow hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
         <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
           {SOURCE_LABEL[finding.sourceType]}

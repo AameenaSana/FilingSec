@@ -39,7 +39,7 @@ export function FilingsList({ cik }: { cik: string }) {
               type="button"
               aria-pressed={filter === index}
               onClick={() => setFilter(index)}
-              className="rounded-full border border-zinc-300 px-3 py-1 text-xs aria-pressed:border-zinc-900 aria-pressed:bg-zinc-900 aria-pressed:text-white dark:border-zinc-700 dark:aria-pressed:border-zinc-100 dark:aria-pressed:bg-zinc-100 dark:aria-pressed:text-zinc-900"
+              className="rounded-full border border-zinc-300 px-3 py-1 text-xs transition hover:border-zinc-400 active:scale-95 aria-pressed:border-violet-600 aria-pressed:bg-violet-600 aria-pressed:text-white dark:border-zinc-700 dark:aria-pressed:border-violet-500 dark:aria-pressed:bg-violet-500 dark:aria-pressed:text-white"
             >
               {option.label}
             </button>
@@ -51,13 +51,13 @@ export function FilingsList({ cik }: { cik: string }) {
         <Alert>SEC EDGAR could not be reached, so the most recent filings may be missing.</Alert>
       )}
       {error && <Alert tone="error">{errorMessage(error)}</Alert>}
-      {isPending && <p role="status" className="text-sm text-zinc-500">Loading filings…</p>}
+      {isPending && <p role="status" className="animate-pulse text-sm text-zinc-500">Loading filings…</p>}
       {!isPending && !error && filings.length === 0 && (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">No filings of this type were found.</p>
       )}
 
       {filings.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-xs dark:border-zinc-800 dark:bg-zinc-950">
           <table className="w-full text-left text-sm">
             <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
               <tr>

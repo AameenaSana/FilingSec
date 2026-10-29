@@ -8,7 +8,7 @@ import { RequireAuth } from "@/components/layout/RequireAuth";
 // The backend still authorizes every request.
 
 const loading = (
-  <p role="status" className="p-8 text-sm text-zinc-500">
+  <p role="status" className="animate-pulse p-8 text-sm text-zinc-500">
     Loading…
   </p>
 );
@@ -19,7 +19,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <Suspense fallback={loading}>
       <RequireAuth>
         <AppHeader />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">{children}</main>
+        <main className="mx-auto w-full max-w-6xl flex-1 animate-fade-in px-4 py-8 sm:px-6">{children}</main>
       </RequireAuth>
     </Suspense>
   );

@@ -18,7 +18,7 @@ export function TextField({ label, error, hint, className = "", ...props }: Text
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy || undefined}
-        className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 aria-invalid:border-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:ring-zinc-800"
+        className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 transition outline-none hover:border-zinc-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/15 aria-invalid:border-red-500 aria-invalid:focus:ring-red-500/15 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-zinc-600"
         {...props}
       />
       {hint && !error && (

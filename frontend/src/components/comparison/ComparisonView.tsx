@@ -34,7 +34,7 @@ export function ComparisonView({ id, initialSection }: { id: number; initialSect
   });
 
   if (isPending) {
-    return <p role="status" className="text-sm text-zinc-500">Loading comparison…</p>;
+    return <p role="status" className="animate-pulse text-sm text-zinc-500">Loading comparison…</p>;
   }
   if (error) {
     return (
@@ -185,7 +185,7 @@ function SectionChanges({
     queryFn: () => comparisonsApi.changes(comparison.id, section.key, includeNumericOnly),
   });
   if (isPending) {
-    return <p role="status" className="text-sm text-zinc-500">Loading changes…</p>;
+    return <p role="status" className="animate-pulse text-sm text-zinc-500">Loading changes…</p>;
   }
   if (error) {
     return <Alert tone="error">{errorMessage(error)}</Alert>;
@@ -214,7 +214,7 @@ const TYPE_STYLE: Record<TextChange["type"], { label: string; className: string 
 function ChangeCard({ change, comparison, sectionKey }: { change: TextChange; comparison: Comparison; sectionKey: string }) {
   const style = TYPE_STYLE[change.type];
   return (
-    <article id={`change-${change.ordinal}`} className="scroll-mt-4 rounded-lg border border-zinc-200 p-4 target:ring-2 target:ring-violet-400 dark:border-zinc-800">
+    <article id={`change-${change.ordinal}`} className="scroll-mt-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs transition-shadow hover:shadow-sm target:ring-2 target:ring-violet-400 dark:border-zinc-800 dark:bg-zinc-950">
       <header className="mb-2 flex flex-wrap items-center gap-2 text-xs">
         <span className="text-zinc-500">#{change.ordinal}</span>
         <span className={`rounded px-1.5 py-0.5 font-medium ${style.className}`}>{style.label}</span>

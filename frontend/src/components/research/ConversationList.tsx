@@ -9,7 +9,7 @@ import { researchApi, researchKeys } from "@/lib/api/research";
 export function ConversationList() {
   const { data, error, isPending } = useQuery({ queryKey: researchKeys.list, queryFn: researchApi.list });
   if (isPending) {
-    return <p role="status" className="text-sm text-zinc-500">Loading conversations…</p>;
+    return <p role="status" className="animate-pulse text-sm text-zinc-500">Loading conversations…</p>;
   }
   if (error) {
     return <Alert tone="error">{errorMessage(error)}</Alert>;
@@ -22,7 +22,7 @@ export function ConversationList() {
     );
   }
   return (
-    <ul className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+    <ul className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white shadow-xs dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
       {data.map((conversation) => (
         <li key={conversation.id} className="px-4 py-3">
           <Link href={`/research/${conversation.id}`} className="font-medium hover:underline">

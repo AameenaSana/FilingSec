@@ -27,7 +27,7 @@ export function CompareLauncher({ accession }: { accession: string }) {
     return null;
   }
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+    <div className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs transition-shadow hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
       <div className="flex flex-col gap-1.5">
         <label htmlFor={selectId} className="text-sm font-medium">
           Compare with

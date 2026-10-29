@@ -78,15 +78,18 @@ export function NotificationBell() {
         aria-haspopup="true"
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
         onClick={() => setOpen((o) => !o)}
-        className="relative rounded-md p-1.5 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+        className="relative rounded-md p-1.5 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 active:scale-90 aria-expanded:bg-zinc-100 aria-expanded:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 dark:aria-expanded:bg-zinc-800 dark:aria-expanded:text-zinc-100"
       >
         <svg aria-hidden viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8">
           <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
           <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
         </svg>
         {unread > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-violet-600 px-1 text-center text-[10px] leading-4 font-semibold text-white">
-            {unread > 99 ? "99+" : unread}
+          <span className="absolute -top-0.5 -right-0.5 flex">
+            {live?.latest && <span className="absolute inset-0 animate-ping rounded-full bg-violet-500 opacity-60" />}
+            <span className="relative min-w-4 rounded-full bg-violet-600 px-1 text-center text-[10px] leading-4 font-semibold text-white ring-2 ring-white dark:ring-zinc-950">
+              {unread > 99 ? "99+" : unread}
+            </span>
           </span>
         )}
       </button>
@@ -94,7 +97,7 @@ export function NotificationBell() {
         {live?.latest ? `New notification: ${live.latest.title}` : ""}
       </span>
       {open && (
-        <div className="absolute right-0 z-20 mt-2 w-96 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="absolute right-0 z-20 mt-2 w-96 max-w-[calc(100vw-2rem)] origin-top-right animate-scale-in overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
           <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
             <span className="text-sm font-semibold">Notifications</span>
             {unread > 0 && (
