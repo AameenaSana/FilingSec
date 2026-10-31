@@ -1,6 +1,7 @@
 package com.filinglens.platform.jobs;
 
 import java.time.Duration;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -116,6 +117,17 @@ public class JobQueue {
 			.param("id", job.id())
 			.update();
 		return exhausted;
+	}
+
+	/** Renews the locks of jobs this worker is still running, so they are not taken for stale. */
+	void refreshLocks(String workerId, Collection<Long> jobIds) {
+		if (jobIds.isEmpty()) {
+			return;
+		}
+		jdbc.sql("""
+				UPDATE job SET locked_at = now()
+				WHERE id IN (:ids) AND status = 'RUNNING' AND locked_by = :workerId
+				""").param("ids", jobIds).param("workerId", workerId).update();
 	}
 
 	/** Returns jobs whose worker died mid-execution to the queue. */
