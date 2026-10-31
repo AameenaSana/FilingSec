@@ -3,11 +3,16 @@ package com.filinglens.platform.jobs;
 import java.net.InetAddress;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import jakarta.annotation.PreDestroy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,10 +26,13 @@ import com.filinglens.platform.config.FilingLensProperties;
 
 /**
  * Polls the {@link JobQueue} and dispatches claimed jobs to their
- * {@link JobHandler}. The jobs claimed in one poll run concurrently, so a slow job
- * (one waiting on an external service) does not hold up the others. Each job runs
- * in its own transaction unless its handler opts out; a failure rolls back the
- * handler's work and schedules a retry.
+ * {@link JobHandler}. Up to {@code batch-size} jobs run at once, each on its own
+ * virtual thread; a poll fills only the free slots and does not wait for running
+ * jobs, so a slow job (one waiting on an external service) does not hold up the
+ * jobs queued after it. Each poll renews the locks of the running jobs, so only
+ * jobs whose worker died are released as stale. Each job runs in its own
+ * transaction unless its handler opts out; a failure rolls back the handler's work
+ * and schedules a retry.
  */
 @Component
 @ConditionalOnBooleanProperty("filinglens.jobs.enabled")
@@ -42,6 +50,12 @@ class JobWorker {
 
 	private final String workerId;
 
+	private final Semaphore slots;
+
+	private final Set<Long> running = ConcurrentHashMap.newKeySet();
+
+	private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+
 	JobWorker(JobQueue queue, List<JobHandler> handlers, TransactionTemplate transactionTemplate,
 			FilingLensProperties properties) {
 		this.queue = queue;
@@ -49,25 +63,46 @@ class JobWorker {
 		this.transactionTemplate = transactionTemplate;
 		this.settings = properties.jobs();
 		this.workerId = hostName() + "-" + UUID.randomUUID().toString().substring(0, 8);
+		this.slots = new Semaphore(settings.batchSize());
 	}
 
 	@Scheduled(fixedDelayString = "${filinglens.jobs.poll-interval}")
 	void poll() {
+		queue.refreshLocks(workerId, Set.copyOf(running));
 		int released = queue.releaseStaleLocks(settings.lockTimeout());
 		if (released > 0) {
 			log.warn("Released {} stale job locks", released);
 		}
-		List<Job> claimed = queue.claim(workerId, settings.batchSize());
-		if (claimed.size() == 1) {
-			execute(claimed.getFirst());
+		// Only this method acquires slots and polls never overlap, so the free slots cannot shrink meanwhile.
+		int free = slots.availablePermits();
+		if (free == 0) {
 			return;
 		}
-		// Closing the executor waits for every job, so the next poll starts after this batch.
-		try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-			for (Job job : claimed) {
-				executor.execute(() -> execute(job));
-			}
+		for (Job job : queue.claim(workerId, free)) {
+			slots.acquireUninterruptibly();
+			running.add(job.id());
+			executor.execute(() -> {
+				try {
+					execute(job);
+				}
+				finally {
+					running.remove(job.id());
+					slots.release();
+				}
+			});
 		}
+	}
+
+	/** Blocks until no job is running; for tests, which poll and then check the outcome. */
+	void awaitIdle() throws InterruptedException {
+		slots.acquire(settings.batchSize());
+		slots.release(settings.batchSize());
+	}
+
+	/** Interrupts running jobs so shutdown is not held up; an interrupted job is retried later. */
+	@PreDestroy
+	void stop() {
+		executor.shutdownNow();
 	}
 
 	void execute(Job job) {

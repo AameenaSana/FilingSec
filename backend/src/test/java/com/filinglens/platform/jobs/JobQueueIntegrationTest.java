@@ -42,10 +42,10 @@ class JobQueueIntegrationTest {
 		AtomicInteger runs = new AtomicInteger();
 		long id = queue.enqueue("test.ok", Map.of("accession", "0000320193-24-000123"));
 
-		worker(handler("test.ok", job -> {
+		pollAndWait(worker(handler("test.ok", job -> {
 			assertThat(job.payload()).contains("0000320193-24-000123");
 			runs.incrementAndGet();
-		})).poll();
+		})));
 
 		assertThat(runs).hasValue(1);
 		assertThat(status(id)).isEqualTo("SUCCEEDED");
@@ -55,9 +55,9 @@ class JobQueueIntegrationTest {
 	void failedJobIsRescheduledWithError() {
 		long id = queue.enqueue("test.fail", Map.of());
 
-		worker(handler("test.fail", job -> {
+		pollAndWait(worker(handler("test.fail", job -> {
 			throw new IllegalStateException("boom");
-		})).poll();
+		})));
 
 		assertThat(status(id)).isEqualTo("PENDING");
 		assertThat(jdbc.sql("SELECT last_error FROM job WHERE id = :id").param("id", id).query(String.class).single())
@@ -89,7 +89,7 @@ class JobQueueIntegrationTest {
 			}
 		};
 
-		worker(handler).poll();
+		pollAndWait(worker(handler));
 
 		assertThat(status(id)).isEqualTo("FAILED");
 		assertThat(hookCalls).hasValue(1);
@@ -121,7 +121,7 @@ class JobQueueIntegrationTest {
 			}
 		};
 
-		worker(handler).poll();
+		pollAndWait(worker(handler));
 
 		assertThat(status(id)).isEqualTo("FAILED");
 		assertThat(hookCalls).hasValue(1);
@@ -158,17 +158,54 @@ class JobQueueIntegrationTest {
 			}
 		};
 
-		worker(handler).poll();
+		pollAndWait(worker(handler));
 
 		assertThat(status(first)).isEqualTo("SUCCEEDED");
 		assertThat(status(second)).isEqualTo("SUCCEEDED");
 	}
 
 	@Test
+	void slowJobDoesNotHoldUpJobsQueuedAfterIt() throws InterruptedException {
+		CountDownLatch finishSlow = new CountDownLatch(1);
+		CountDownLatch quickRan = new CountDownLatch(1);
+		JobWorker worker = worker(blocking("test.slow", finishSlow), handler("test.quick", job -> quickRan.countDown()));
+		long slow = queue.enqueue("test.slow", Map.of());
+		worker.poll();
+
+		long quick = queue.enqueue("test.quick", Map.of());
+		worker.poll();
+
+		assertThat(quickRan.await(10, TimeUnit.SECONDS)).as("the quick job ran while the slow one was running").isTrue();
+		assertThat(status(slow)).isEqualTo("RUNNING");
+		finishSlow.countDown();
+		worker.awaitIdle();
+		assertThat(status(slow)).isEqualTo("SUCCEEDED");
+		assertThat(status(quick)).isEqualTo("SUCCEEDED");
+	}
+
+	@Test
+	void runningJobKeepsItsLockPastTheLockTimeout() throws InterruptedException {
+		CountDownLatch finishSlow = new CountDownLatch(1);
+		JobWorker worker = worker(blocking("test.slow", finishSlow));
+		long id = queue.enqueue("test.slow", Map.of());
+		worker.poll();
+		jdbc.sql("UPDATE job SET locked_at = now() - interval '1 day' WHERE id = :id").param("id", id).update();
+
+		worker.poll();
+
+		assertThat(status(id)).as("the lock was renewed, not released as stale").isEqualTo("RUNNING");
+		finishSlow.countDown();
+		worker.awaitIdle();
+		assertThat(status(id)).isEqualTo("SUCCEEDED");
+		assertThat(jdbc.sql("SELECT attempts FROM job WHERE id = :id").param("id", id).query(Integer.class).single())
+			.isEqualTo(1);
+	}
+
+	@Test
 	void unknownJobTypeFailsPermanently() {
 		long id = queue.enqueue("test.unknown", Map.of());
 
-		worker().poll();
+		pollAndWait(worker());
 
 		assertThat(status(id)).isEqualTo("FAILED");
 	}
@@ -189,6 +226,39 @@ class JobQueueIntegrationTest {
 
 	private JobWorker worker(JobHandler... handlers) {
 		return new JobWorker(queue, List.of(handlers), transactionTemplate, properties);
+	}
+
+	private static void pollAndWait(JobWorker worker) {
+		worker.poll();
+		try {
+			worker.awaitIdle();
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			throw new IllegalStateException(ex);
+		}
+	}
+
+	/** A handler whose job runs until {@code finish} is counted down. */
+	private static JobHandler blocking(String type, CountDownLatch finish) {
+		return new JobHandler() {
+			@Override
+			public String type() {
+				return type;
+			}
+
+			@Override
+			public boolean transactional() {
+				return false;
+			}
+
+			@Override
+			public void handle(Job job) throws InterruptedException {
+				if (!finish.await(10, TimeUnit.SECONDS)) {
+					throw new IllegalStateException("the test never finished the job");
+				}
+			}
+		};
 	}
 
 	private String status(long id) {
