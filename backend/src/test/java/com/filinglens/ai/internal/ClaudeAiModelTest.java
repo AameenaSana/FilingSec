@@ -96,7 +96,7 @@ class ClaudeAiModelTest {
 			.apiKey("test-key")
 			.baseUrl("http://127.0.0.1:" + server.getAddress().getPort())
 			.build();
-		model = new ClaudeAiModel(new AiProperties("test-key", "claude-opus-5-5", 64000, "medium", 1_000_000), client);
+		model = new ClaudeAiModel(new AiProperties("test-key", "claude-opus-5-5", 64000, "medium", 1_000_000, "anthropic", null), client);
 	}
 
 	@AfterEach
@@ -169,7 +169,7 @@ class ClaudeAiModelTest {
 			.apiKey("test-key")
 			.baseUrl("http://127.0.0.1:" + server.getAddress().getPort())
 			.build();
-		model = new ClaudeAiModel(new AiProperties("test-key", "claude-opus-5-5", 64000, "medium", 1_000_000), client);
+		model = new ClaudeAiModel(new AiProperties("test-key", "claude-opus-5-5", 64000, "medium", 1_000_000, "anthropic", null), client);
 
 		assertThatThrownBy(() -> model.generate(request(), text -> {
 		})).isInstanceOf(AiRequestRejectedException.class)

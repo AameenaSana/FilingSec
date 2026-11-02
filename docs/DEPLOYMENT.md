@@ -33,8 +33,10 @@ Copy `.env.example` to `.env` and fill it in. **Never commit `.env` or put secre
 | `APP_PUBLIC_URL` | yes | Browser-facing origin, used for links in emails |
 | `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` | yes in production | Outgoing email (verification, password reset, notifications) |
 | `SMTP_STARTTLS` | no (`false`) | `true` for servers that require STARTTLS, e.g. Gmail (`smtp.gmail.com`, port 587, an app password, and `MAIL_FROM` set to the Gmail address) |
-| `LLM_API_KEY` | no | Anthropic API key; without it question answering and AI interpretation are disabled |
-| `LLM_MODEL` | no (`claude-opus-5-5`) | Claude model |
+| `LLM_PROVIDER` | no (`anthropic`) | `anthropic` for Claude, or `openai-compatible` for a service speaking the OpenAI Chat Completions API, such as Gemini or Ollama. Its citations are per block rather than exact quotes |
+| `LLM_BASE_URL` | no (Gemini's OpenAI-compatible endpoint) | API root for `openai-compatible`, before `chat/completions` |
+| `LLM_API_KEY` | no | API key of the provider; without it question answering and AI interpretation are disabled |
+| `LLM_MODEL` | no (`claude-opus-5-5`) | Model name at the provider, e.g. `gemini-3.8-flash` |
 | `EMBEDDING_API_KEY` | no | Voyage AI key; without it retrieval is keyword-only |
 | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | no | Google sign-in through Supabase Auth (public values). The frontend image needs them at build time (Compose passes them as build args). In Supabase, enable the Google provider and add `<APP_PUBLIC_URL>/auth/callback` to the redirect URLs |
 | `MONITORING_ENABLED`, `MONITORING_POLL_INTERVAL` | no (`true`, `PT15M`) | Polling of watched companies |
