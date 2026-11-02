@@ -67,5 +67,6 @@ notifications), 10 (dashboard) and 11 (hardening: end-to-end tests, RAG evaluati
 performance, security review) are complete. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for
 running in production and [docs/SECURITY.md](docs/SECURITY.md) for the security review.
 
-Question answering needs `LLM_API_KEY` (Anthropic) in `.env`; semantic search additionally uses
+Question answering needs `LLM_API_KEY` (Anthropic, or a free Gemini key with `LLM_PROVIDER`; see
+`.env.example`) in `.env`; semantic search additionally uses
 `EMBEDDING_API_KEY` (Voyage AI). Without the embedding key, retrieval falls back to keyword search. See the phase plan in the architecture document.

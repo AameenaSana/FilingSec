@@ -40,6 +40,8 @@ services:
       SEC_USER_AGENT: ${SEC_USER_AGENT:?set SEC_USER_AGENT in .env}
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:3000}
       MAIL_FROM: ${MAIL_FROM:-FilingLens <no-reply@localhost>}
+      LLM_PROVIDER: ${LLM_PROVIDER:-anthropic}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai/}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-claude-opus-5-5}
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}

@@ -9,6 +9,7 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.anthropic.client.AnthropicClient;
@@ -42,6 +43,7 @@ import com.filinglens.ai.AiRequestRejectedException;
  * Server-side refusal fallbacks are enabled.
  */
 @Component
+@ConditionalOnProperty(name = "filinglens.ai.provider", havingValue = "anthropic", matchIfMissing = true)
 class ClaudeAiModel implements AiModel {
 
 	private static final Logger log = LoggerFactory.getLogger(ClaudeAiModel.class);
