@@ -33,7 +33,7 @@ dependencies {
 	implementation("org.springframework.modulith:spring-modulith-starter-jdbc")
 	implementation("com.bucket4j:bucket4j_jdk17-core:8.21.0")
 	implementation("com.github.ben-manes.caffeine:caffeine")
-	implementation("org.jsoup:jsoup:1.23.2")
+	implementation("org.jsoup:jsoup:1.24.1")
 	implementation("io.github.java-diff-utils:java-diff-utils:4.18")
 	implementation("com.anthropic:anthropic-java:3.2.0")
 	runtimeOnly("org.bouncycastle:bcprov-jdk18on:1.86")
