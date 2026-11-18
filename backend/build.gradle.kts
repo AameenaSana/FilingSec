@@ -36,7 +36,7 @@ dependencies {
 	implementation("org.jsoup:jsoup:1.23.2")
 	implementation("io.github.java-diff-utils:java-diff-utils:4.18")
 	implementation("com.anthropic:anthropic-java:3.2.0")
-	runtimeOnly("org.bouncycastle:bcprov-jdk18on:1.86")
+	runtimeOnly("org.bouncycastle:bcprov-jdk18on:1.87")
 	runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 	runtimeOnly("org.postgresql:postgresql")
 	runtimeOnly("org.springframework.modulith:spring-modulith-runtime")
